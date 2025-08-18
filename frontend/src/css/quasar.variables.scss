@@ -1,0 +1,125 @@
+// Quasar SCSS (& Sass) Variables
+// --------------------------------------------------
+// To customize the look and feel of this app, you can override
+// the Sass/SCSS variables found in Quasar's source Sass/SCSS files.
+
+// Dream Journal - Solarized Theme
+// Using Ethan Schoonover's Solarized palette within Quasar's light/dark framework
+
+// Solarized Base Colors
+$base03: #002b36;  // darkest background
+$base02: #073642;  // dark highlights
+$base01: #586e75;  // dark content secondary
+$base00: #657b83;  // dark body text
+$base0: #839496;   // light body text
+$base1: #93a1a1;   // light content secondary
+$base2: #eee8d5;   // light highlights
+$base3: #fdf6e3;   // lightest background
+
+// Solarized Accent Colors
+$primary: #2aa198;    // cyan
+$secondary: #268bd2;  // blue  
+$accent: #d33682;     // magenta
+
+// Solarized Status Colors
+$positive: #859900;   // green
+$negative: #dc322f;   // red
+$info: #6c71c4;      // violet
+$warning: #b58900;    // yellow
+
+// Light Mode Theme Variables
+$light: $base3;        // lightest background
+$light-page: $base3;   // page background
+
+// Dark Mode Theme Variables  
+$dark: $base03;        // darkest background
+$dark-page: $base03;   // page background
+
+// Quasar Grey Palette (mapped to Solarized)
+$grey-1: $base3;       // lightest
+$grey-2: $base2;       // light highlights  
+$grey-3: $base1;       // light content secondary
+$grey-4: $base0;       // light body text
+$grey-5: $base00;      // dark body text
+$grey-6: $base01;      // dark content secondary
+$grey-7: $base02;      // dark highlights
+$grey-8: $base03;      // darkest
+$grey-9: $base03;      // darkest
+$grey-10: $base03;     // darkest
+
+// Component-specific variables using Solarized colors
+$separator-color: rgba($base01, 0.12);              // light mode separators
+$separator-dark-color: rgba($base1, 0.28);          // dark mode separators
+
+// Typography - Unassuming monospace fonts
+$typography-font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Source Code Pro', 'Menlo', 'Consolas', monospace !default;
+
+// Input styling
+$input-text-color: $base00;         // dark text for light mode
+$input-label-color: $base1;         // light content for labels
+$input-autofill-color: $base00;     // autofill text color
+
+// Card background overrides - using accent colors for subtle contrast
+.body--light .q-card {
+  background-color: $base2 !important;  // light background accent (#eee8d5)
+}
+
+.body--dark .q-card {
+  background-color: $base02 !important; // dark background accent (#073642)
+}
+
+// Drawer background overrides - using accent colors for subtle contrast
+.body--light .q-drawer {
+  background-color: $base2 !important;  // light background accent (#eee8d5)
+  border-right: 1px solid $base1 !important; // light border
+}
+
+.body--dark .q-drawer {
+  background-color: $base02 !important; // dark background accent (#073642)
+  border-right: 1px solid $base01 !important; // dark border
+}
+
+// Input field styling - should match card background
+.body--light .q-field--outlined .q-field__control {
+  background-color: $base2 !important;  // match card background accent
+}
+
+.body--dark .q-field--outlined .q-field__control {
+  background-color: $base02 !important; // match card background accent
+}
+
+// Autofill styling overrides to honor Solarized theme
+.body--light {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px $base2 inset !important;  // match card background
+    -webkit-text-fill-color: $base00 !important;               // dark text
+    border-color: $base1 !important;                           // light border
+  }
+}
+
+.body--dark {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px $base02 inset !important; // match card background
+    -webkit-text-fill-color: $base0 !important;                // light text
+    border-color: $base01 !important;                          // dark border
+  }
+}
+
+// Global font family application
+body {
+  font-family: $typography-font-family;
+}
+
+// Ensure inputs also use monospace
+.q-field__native,
+.q-field__prefix,
+.q-field__suffix,
+.q-field__label {
+  font-family: $typography-font-family;
+}

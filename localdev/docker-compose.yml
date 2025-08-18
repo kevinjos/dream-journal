@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dreamjournal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: dreamjournal
+      POSTGRES_PASSWORD: dreamjournal
+      POSTGRES_DB: dreamjournal
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dreamjournal"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

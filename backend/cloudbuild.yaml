@@ -1,0 +1,87 @@
+# Cloud Build configuration for Dream Journal Backend
+# Uses envsubst to replace variables in Kubernetes manifests
+
+steps:
+  # Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--no-cache'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:latest'
+      - './backend'
+    id: 'build-backend'
+
+  # Push the Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend'
+    id: 'push-backend'
+    waitFor: ['build-backend']
+
+  # Get GKE cluster credentials
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'container'
+      - 'clusters'
+      - 'get-credentials'
+      - '${_CLUSTER_NAME}'
+      - '--location=${_REGION}'
+      - '--project=${_PROJECT_ID}'
+    id: 'get-credentials'
+    waitFor: ['push-backend']
+
+  # Deploy Kubernetes manifests with variable substitution
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Set environment variables for envsubst
+        export PROJECT_ID=${_PROJECT_ID}
+        export REGION=${_REGION}
+        export SHORT_SHA=${SHORT_SHA}
+        
+        # Install envsubst if not available
+        apt-get update && apt-get install -y gettext-base
+        
+        # Apply namespace first if it exists
+        if [[ -f "backend/k8s/namespace.yaml" ]]; then
+          echo "Processing backend/k8s/namespace.yaml"
+          envsubst < "backend/k8s/namespace.yaml" | kubectl apply -f -
+        fi
+        
+        # Process and apply other manifest files
+        for file in backend/k8s/*.yaml; do
+          if [[ -f "$$file" && "$$file" != "backend/k8s/namespace.yaml" ]]; then
+            echo "Processing $$file"
+            envsubst < "$$file" | kubectl apply -f -
+          fi
+        done
+    id: 'deploy-manifests'
+    waitFor: ['get-credentials']
+
+# Substitutions (configure sensitive values in Cloud Build trigger)
+substitutions:
+  # _PROJECT_ID: Set this in Cloud Build trigger substitutions
+  _REGION: 'us-central1'
+  _REPOSITORY: 'dream-journal'
+  _CLUSTER_NAME: 'dream-journal-autopilot'
+
+# Build options
+options:
+  machineType: 'E2_MEDIUM'
+  substitution_option: 'ALLOW_LOOSE'
+  logging: 'CLOUD_LOGGING_ONLY'
+
+# Build timeout
+timeout: '1200s'
+
+# Images to be pushed to registry
+images:
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:latest'

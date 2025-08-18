@@ -1,0 +1,65 @@
+# Cloud Build configuration for Dream Journal Infrastructure
+# Sensitive values are stored as substitutions to keep them out of the repository
+
+substitutions:
+  # Sensitive values - CONFIGURE THESE IN CLOUD BUILD TRIGGER
+  # _PROJECT_ID: Set this in Cloud Build trigger substitutions
+  # _GITHUB_OWNER: Set this in Cloud Build trigger substitutions  
+  # _GITHUB_REPO: Set this in Cloud Build trigger substitutions
+  
+  # Safe defaults - no need to override in triggers
+  _REGION: "us-central1"
+  _ZONE: "us-central1-a" 
+  _DB_TIER: "db-f1-micro"
+  _ENVIRONMENT: "prod"
+
+steps:
+  # Initialize OpenTofu
+  - name: 'hashicorp/terraform:1.6'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd infrastructure/environments/${_ENVIRONMENT}
+        terraform init
+    id: 'tofu-init'
+
+  # Plan infrastructure changes
+  - name: 'hashicorp/terraform:1.6'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd infrastructure/environments/${_ENVIRONMENT}
+        terraform plan \
+          -var="project_id=${_PROJECT_ID}" \
+          -var="github_owner=${_GITHUB_OWNER}" \
+          -var="github_repo=${_GITHUB_REPO}" \
+          -var="region=${_REGION}" \
+          -var="zone=${_ZONE}" \
+          -var="db_tier=${_DB_TIER}" \
+          -out=tfplan
+    id: 'tofu-plan'
+
+  # Apply infrastructure changes (only on main branch)
+  - name: 'hashicorp/terraform:1.6'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        cd infrastructure/environments/${_ENVIRONMENT}
+        if [ "$BRANCH_NAME" = "main" ]; then
+          terraform apply -auto-approve tfplan
+        else
+          echo "Skipping apply - not on main branch"
+        fi
+    id: 'tofu-apply'
+
+# Build options
+options:
+  machineType: 'E2_MEDIUM'
+  substitution_option: 'ALLOW_LOOSE'
+  logging: 'CLOUD_LOGGING_ONLY'
+
+# Build timeout
+timeout: '1800s'

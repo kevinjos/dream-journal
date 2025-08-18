@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dream-journal
+  labels:
+    name: dream-journal
+    app.kubernetes.io/name: dream-journal

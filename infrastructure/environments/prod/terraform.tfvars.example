@@ -1,0 +1,22 @@
+# Example terraform.tfvars file for Production Environment
+# Copy this to terraform.tfvars and customize if needed
+
+# GCP Region (optional, defaults to us-central1)
+# region = "us-central1"
+
+# GCP Zone (optional, defaults to us-central1-a)
+# zone = "us-central1-a"
+
+# GKE Autopilot Configuration
+# Note: No node configuration needed - Google manages compute resources automatically
+# Costs are based on actual pod resource requests (~$29/month estimated for this workload)
+
+# Database Configuration (optional, defaults shown)
+# db_tier = "db-f1-micro"
+
+# GitHub Repository Configuration (REQUIRED for Cloud Build triggers)
+github_owner = "your-github-username"
+github_repo  = "dream-journal"
+
+# Note: Project ID is hardcoded to use your existing "Sensorium" project
+# (global-sun-469222-k6) in main.tf
