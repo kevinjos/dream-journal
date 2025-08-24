@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-sm q-pa-md-md">
     <div class="home-container">
       <!-- Header -->
       <div class="text-center q-mb-xl">
@@ -190,12 +190,5 @@ onMounted(() => {
 .home-container {
   max-width: 600px;
   margin: 0 auto;
-}
-
-/* Mobile-first responsive design */
-@media (max-width: 600px) {
-  .home-container {
-    max-width: 100%;
-  }
 }
 </style>

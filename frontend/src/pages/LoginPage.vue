@@ -1,6 +1,6 @@
 <template>
-  <q-page class="flex flex-center">
-    <q-card class="q-pa-lg" style="min-width: 400px">
+  <q-page class="flex flex-center q-pa-sm q-pa-md-md">
+    <q-card class="q-pa-md q-pa-lg-md col-12 col-sm-8 col-md-6 col-lg-4" style="max-width: 400px">
       <q-card-section>
         <div class="text-h6 text-center q-mb-md">Dream Journal</div>
         <div class="text-subtitle2 text-center text-grey-6 q-mb-lg">Sign in to your account</div>

@@ -1,32 +1,28 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="quality-cloud-container">
-      <!-- Header -->
-      <div class="row items-center q-mb-md">
-        <q-btn flat round icon="arrow_back" @click="router.push('/')" class="q-mr-sm" />
-        <div class="text-h6 text-weight-medium">Dream Cloud</div>
-      </div>
-
-      <!-- Loading state -->
-      <div v-if="loading" class="text-center q-pa-lg">
-        <q-spinner-dots size="40px" color="primary" />
-        <div class="text-subtitle2 q-mt-md">Loading qualities...</div>
-      </div>
-
-      <!-- D3 Word Cloud -->
-      <div v-else-if="qualities.length > 0">
-        <div ref="wordCloudContainer" class="word-cloud-svg"></div>
-      </div>
-
-      <!-- Empty state -->
-      <q-card v-else flat bordered class="text-center q-pa-lg">
-        <q-icon name="cloud" size="48px" color="grey-5" class="q-mb-md" />
-        <div class="text-subtitle1 text-grey-6 q-mb-sm">No qualities yet</div>
-        <div class="text-body2 text-grey-5">
-          Create dreams with qualities to see your word cloud
-        </div>
-      </q-card>
+  <q-page class="q-pa-sm q-pa-md-md column">
+    <!-- Header -->
+    <div class="row items-center q-mb-md">
+      <q-btn flat round icon="arrow_back" @click="router.push('/')" class="q-mr-sm" />
+      <div class="text-h6 text-weight-medium">Dream Cloud</div>
     </div>
+
+    <!-- Loading state -->
+    <div v-if="loading" class="text-center q-pa-lg col-grow">
+      <q-spinner-dots size="40px" color="primary" />
+      <div class="text-subtitle2 q-mt-md">Loading qualities...</div>
+    </div>
+
+    <!-- D3 Word Cloud -->
+    <div v-else-if="qualities.length > 0" class="col-grow column">
+      <div ref="wordCloudContainer" class="word-cloud-svg full-width col-grow"></div>
+    </div>
+
+    <!-- Empty state -->
+    <q-card v-else flat bordered class="text-center q-pa-lg">
+      <q-icon name="cloud" size="48px" color="grey-5" class="q-mb-md" />
+      <div class="text-subtitle1 text-grey-6 q-mb-sm">No qualities yet</div>
+      <div class="text-body2 text-grey-5">Create dreams with qualities to see your word cloud</div>
+    </q-card>
   </q-page>
 </template>
 
@@ -38,9 +34,11 @@ import { qualitiesApi } from 'src/services/web';
 import * as d3 from 'd3';
 import type { Quality } from 'components/models';
 
-interface QualityNode extends Quality, d3.SimulationNodeDatum {
-  x?: number;
-  y?: number;
+interface QualityNode extends d3.SimulationNodeDatum, Quality {
+  fontSize: number;
+  rotate: number;
+  width: number;
+  height: number;
 }
 
 const router = useRouter();
@@ -56,7 +54,6 @@ const createWordCloud = async (): Promise<void> => {
   d3.select(wordCloudContainer.value).selectAll('*').remove();
 
   const container = wordCloudContainer.value;
-  // Let CSS handle both width and height - SVG will inherit from container
 
   // Create SVG with zoom container - let it inherit width and height from CSS
   const svg = d3.select(container).append('svg').style('width', '100%').style('height', '100%');
@@ -79,9 +76,10 @@ const createWordCloud = async (): Promise<void> => {
   const maxFrequency = Math.max(...qualities.value.map((q) => q.frequency));
   const minFrequency = Math.min(...qualities.value.map((q) => q.frequency));
 
-  const fontScale = d3.scaleLinear().domain([minFrequency, maxFrequency]).range([16, 48]);
+  // Reduce font size range to allow more words to fit
+  const fontScale = d3.scaleLinear().domain([minFrequency, maxFrequency]).range([14, 32]);
 
-  // Use Quasar's named color variables from the existing scheme
+  // Use Quasar's themed colors
   const computedStyle = getComputedStyle(document.documentElement);
   const primaryColor = computedStyle.getPropertyValue('--q-primary').trim();
   const secondaryColor = computedStyle.getPropertyValue('--q-secondary').trim();
@@ -100,10 +98,6 @@ const createWordCloud = async (): Promise<void> => {
   const getRandomTextColor = () =>
     textColors[Math.floor(Math.random() * textColors.length)] || secondaryColor;
 
-  // Convert qualities to simulation nodes
-  const nodes: QualityNode[] = qualities.value.map((q) => ({ ...q }));
-
-  // Simple spiral placement algorithm
   // Wait for SVG to render with CSS dimensions
   await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -119,37 +113,140 @@ const createWordCloud = async (): Promise<void> => {
 
   const centerX = actualWidth / 2;
   const centerY = actualHeight / 2;
-  const spiral = d3.range(nodes.length).map((_, i) => {
-    const angle = i * 0.5;
-    const radius = Math.sqrt(i) * 20;
+
+  // Helper function to calculate text dimensions
+  const getTextDimensions = (
+    text: string,
+    fontSize: number,
+    rotate: number,
+  ): { width: number; height: number } => {
+    // Create temporary text element to measure dimensions
+    const tempText = svg
+      .append('text')
+      .text(text)
+      .style('font-size', `${fontSize}px`)
+      .style('font-weight', 'bold')
+      .style('visibility', 'hidden');
+
+    const bbox = tempText.node()!.getBBox();
+    tempText.remove();
+
+    // For rotated text, swap width and height
+    if (rotate === 90) {
+      return { width: bbox.height, height: bbox.width };
+    }
+    return { width: bbox.width, height: bbox.height };
+  };
+
+  // Check if two nodes overlap (with padding)
+  const nodesOverlap = (a: QualityNode, b: QualityNode, padding: number = 5): boolean => {
+    if (!a.x || !a.y || !b.x || !b.y || !a.width || !a.height || !b.width || !b.height)
+      return false;
+
+    const aLeft = a.x - a.width / 2 - padding;
+    const aRight = a.x + a.width / 2 + padding;
+    const aTop = a.y - a.height / 2 - padding;
+    const aBottom = a.y + a.height / 2 + padding;
+
+    const bLeft = b.x - b.width / 2 - padding;
+    const bRight = b.x + b.width / 2 + padding;
+    const bTop = b.y - b.height / 2 - padding;
+    const bBottom = b.y + b.height / 2 + padding;
+
+    return !(aRight < bLeft || aLeft > bRight || aBottom < bTop || aTop > bBottom);
+  };
+
+  // Create word cloud nodes with rotation assignment
+  const nodes: QualityNode[] = qualities.value.map((q) => {
+    const fontSize = fontScale(q.frequency);
+    // 15% chance for vertical text (90° rotation)
+    const rotate = Math.random() < 0.15 ? 90 : 0;
+    const dimensions = getTextDimensions(q.name, fontSize, rotate);
+
     return {
-      x: centerX + radius * Math.cos(angle),
-      y: centerY + radius * Math.sin(angle),
+      ...q,
+      fontSize,
+      rotate,
+      width: dimensions.width,
+      height: dimensions.height,
+      x: centerX + (Math.random() - 0.5) * 100, // Start near center
+      y: centerY + (Math.random() - 0.5) * 100,
     };
   });
 
-  // Set initial positions
-  nodes.forEach((node, i) => {
-    const pos = spiral[i];
-    if (pos) {
-      node.x = pos.x;
-      node.y = pos.y;
-    }
-  });
+  // Custom collision detection and positioning
+  const positionNodes = (): void => {
+    const maxAttempts = 1000;
+    const padding = 8;
 
-  // Create text elements in the zoom group
+    // Sort by frequency (larger words placed first)
+    nodes.sort((a, b) => b.frequency - a.frequency);
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i]!;
+      let placed = false;
+
+      if (i === 0) {
+        // Place first (largest) node at center
+        node.x = centerX;
+        node.y = centerY;
+        placed = true;
+      } else {
+        // Try to place subsequent nodes using spiral pattern
+        for (let attempt = 0; attempt < maxAttempts && !placed; attempt++) {
+          const angle = attempt * 0.3;
+          const radius = attempt * 2;
+
+          node.x = centerX + Math.cos(angle) * radius;
+          node.y = centerY + Math.sin(angle) * radius;
+
+          // Check bounds
+          if (
+            node.x - node.width / 2 < 0 ||
+            node.x + node.width / 2 > actualWidth ||
+            node.y - node.height / 2 < 0 ||
+            node.y + node.height / 2 > actualHeight
+          ) {
+            continue;
+          }
+
+          // Check collisions with already placed nodes
+          let hasCollision = false;
+          for (let j = 0; j < i; j++) {
+            if (nodesOverlap(node, nodes[j]!, padding)) {
+              hasCollision = true;
+              break;
+            }
+          }
+
+          if (!hasCollision) {
+            placed = true;
+          }
+        }
+      }
+
+      // If we couldn't place the node, skip it
+      if (!placed) {
+        nodes.splice(i, 1);
+        i--;
+      }
+    }
+  };
+
+  // Position all nodes
+  positionNodes();
+
+  // Create text elements
   const textElements = zoomGroup
     .selectAll('text')
     .data(nodes)
     .enter()
     .append('text')
     .text((d) => d.name)
-    .attr('x', 0)
-    .attr('y', 0)
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
-    .attr('transform', (d) => `translate(${d.x || centerX}, ${d.y || centerY}) scale(1)`)
-    .style('font-size', (d) => `${fontScale(d.frequency)}px`)
+    .attr('transform', (d) => `translate(${d.x}, ${d.y}) rotate(${d.rotate})`)
+    .style('font-size', (d) => `${d.fontSize}px`)
     .style('font-weight', 'bold')
     .style('fill', primaryColor)
     .style('cursor', 'pointer')
@@ -157,39 +254,39 @@ const createWordCloud = async (): Promise<void> => {
 
   // Add hover, touch, and click interactions
   textElements
-    .on('mouseover', function (_, d) {
+    .on('mouseover', function (_, d: QualityNode) {
       d3.select(this)
         .style('fill', secondaryColor)
-        .attr('transform', `translate(${d.x || centerX}, ${d.y || centerY}) scale(1.1)`);
+        .attr('transform', `translate(${d.x}, ${d.y}) rotate(${d.rotate}) scale(1.1)`);
     })
-    .on('mouseout', function (_, d) {
+    .on('mouseout', function (_, d: QualityNode) {
       d3.select(this)
         .style('fill', primaryColor)
-        .attr('transform', `translate(${d.x || centerX}, ${d.y || centerY}) scale(1)`);
+        .attr('transform', `translate(${d.x}, ${d.y}) rotate(${d.rotate}) scale(1)`);
     })
     // Add touch support for mobile
     .on('touchstart', function (event) {
       event.preventDefault();
     })
-    .on('click touchend', function (event, d) {
+    .on('click touchend', function (event, d: QualityNode) {
       event.preventDefault();
 
       // Reset all text elements to normal state
-      textElements.each(function (nodeData) {
-        const node = nodeData;
+      textElements.each(function (nodeData: QualityNode) {
         d3.select(this)
           .style('fill', primaryColor)
           .style('stroke', 'none')
-          .attr('transform', `translate(${node.x || centerX}, ${node.y || centerY}) scale(1)`)
-          .attr('x', 0)
-          .attr('y', 0);
+          .attr(
+            'transform',
+            `translate(${nodeData.x}, ${nodeData.y}) rotate(${nodeData.rotate}) scale(1)`,
+          );
       });
 
       // Apply persistent selection styling
       const randomColor = getRandomTextColor();
       d3.select(this)
         .style('fill', randomColor)
-        .attr('transform', `translate(${d.x || centerX}, ${d.y || centerY}) scale(1.2)`);
+        .attr('transform', `translate(${d.x}, ${d.y}) rotate(${d.rotate}) scale(1.2)`);
 
       // Show notification with quality info and matching color
       $q.notify({
@@ -210,42 +307,6 @@ const createWordCloud = async (): Promise<void> => {
         ],
       });
     });
-
-  // Collision detection and repositioning
-  const simulation = d3
-    .forceSimulation(nodes)
-    .force(
-      'collision',
-      d3.forceCollide<QualityNode>().radius((d) => fontScale(d.frequency) / 2 + 8),
-    )
-    .force('center', d3.forceCenter(centerX, centerY))
-    .force('charge', d3.forceManyBody().strength(-30))
-    .on('tick', () => {
-      textElements.attr('transform', (d) => {
-        const safeX = Math.max(60, Math.min(actualWidth - 60, d.x || centerX));
-        const safeY = Math.max(30, Math.min(actualHeight - 60, d.y || centerY));
-        // Update the node position data
-        d.x = safeX;
-        d.y = safeY;
-        return `translate(${safeX}, ${safeY}) scale(1)`;
-      });
-    });
-
-  // Run simulation for positioning, then stop completely
-  for (let i = 0; i < 150; ++i) simulation.tick();
-
-  // Final positioning with safe margins
-  textElements.attr('transform', (d) => {
-    const safeX = Math.max(60, Math.min(actualWidth - 60, d.x || centerX));
-    const safeY = Math.max(30, Math.min(actualHeight - 60, d.y || centerY));
-    d.x = safeX;
-    d.y = safeY;
-    return `translate(${safeX}, ${safeY}) scale(1)`;
-  });
-
-  // Stop and remove simulation to prevent further movement
-  simulation.stop();
-  simulation.nodes([]);
 };
 
 const viewDreamsWithQuality = (quality: Quality): void => {
@@ -291,29 +352,12 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.quality-cloud-container {
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
 .word-cloud-svg {
-  width: 100%;
-  height: calc(100vh - 160px); /* Back to original approach */
+  height: calc(100vh - 160px);
   min-height: 350px;
   border: 1px solid var(--q-separator-color);
   border-radius: 8px;
   background: var(--q-page-background);
-}
-
-/* Mobile-first responsive design */
-@media (max-width: 600px) {
-  .quality-cloud-container {
-    max-width: 100%;
-  }
-
-  .word-cloud-svg {
-    height: calc(100vh - 160px); /* Same as desktop for now */
-    min-height: 300px;
-  }
+  overflow: hidden;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-md">
+  <q-page class="q-pa-sm q-pa-md-md">
     <div class="dreams-list-container">
       <!-- Header -->
       <div class="row items-center q-mb-md">
@@ -280,12 +280,5 @@ onMounted(() => {
 
 .dreams-list {
   min-height: 400px;
-}
-
-/* Mobile-first responsive design */
-@media (max-width: 600px) {
-  .dreams-list-container {
-    max-width: 100%;
-  }
 }
 </style>

@@ -2,3 +2,9 @@
 
 // Import Solarized theme overrides
 @import './solarized-theme.scss';
+
+// Minimal global rules to prevent horizontal scroll - let Quasar handle the rest
+html,
+body {
+  overflow-x: hidden;
+}

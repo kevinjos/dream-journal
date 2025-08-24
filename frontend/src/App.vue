@@ -3,13 +3,6 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue';
-import { useAuthStore } from 'stores/auth';
-
-const authStore = useAuthStore();
-
-// Initialize auth store on app startup to restore session from localStorage
-onMounted(async () => {
-  await authStore.init();
-});
+// Auth initialization is now handled by the router guard
+// This ensures proper async initialization before navigation
 </script>

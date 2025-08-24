@@ -34,13 +34,13 @@ export default defineRouter(function ({ store }) {
   });
 
   // Navigation guards
-  Router.beforeEach(async (to, from, next) => {
+  Router.beforeEach(async (to) => {
     // Import auth store inside the guard to avoid circular imports
     const { useAuthStore } = await import('stores/auth');
     const authStore = useAuthStore(store);
 
-    // Initialize auth store if not done already
-    if (authStore.accessToken && !authStore.user) {
+    // Initialize auth store once on first navigation
+    if (!authStore.initialized) {
       await authStore.init();
     }
 
@@ -50,14 +50,12 @@ export default defineRouter(function ({ store }) {
 
     if (!isAuthRoute && !isAuthenticated) {
       // Redirect to login if accessing protected route while unauthenticated
-      next('/auth/login');
+      return '/auth/login';
     } else if (isAuthRoute && isAuthenticated) {
       // Redirect to home if accessing auth routes while authenticated
-      next('/');
-    } else {
-      // Allow navigation
-      next();
+      return '/';
     }
+    // Allow navigation (no explicit return needed)
   });
 
   return Router;

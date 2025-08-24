@@ -51,10 +51,15 @@ export default defineBoot(({ app }) => {
         if (refreshSuccess) {
           // Retry the original request with new token
           const retryConfig = setRetryFlag(originalRequest);
+          // Ensure the retry uses the new token (it should already be in defaults, but be explicit)
+          const authHeader = api.defaults.headers.common['Authorization'];
+          if (authHeader) {
+            retryConfig.headers = retryConfig.headers || {};
+            retryConfig.headers['Authorization'] = authHeader;
+          }
           return api.request(retryConfig);
         } else {
           // Refresh failed, user needs to login again
-          console.warn('Token refresh failed, redirecting to login');
           // The auth store will have already cleared tokens and redirected
         }
       }

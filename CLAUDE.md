@@ -10,6 +10,46 @@ A dream journal web application built with Django (backend) and Quasar/Vue (fron
 - **Python**: 3.13.7 (managed via pyenv)
 - **Node**: 22.18.0 LTS (managed via fnm)
 
+## Architectural Principles
+
+### Framework-First Approach
+**ALWAYS search for solutions within the chosen frameworks first, before implementing custom solutions.**
+
+1. **Quasar/Vue Frontend**:
+   - Use Quasar components and utilities (e.g., `q-pa-md`, `col-*`, `q-btn`)
+   - Follow Vue Composition API patterns with `<script setup>`
+   - Use Vue Router for navigation and auth guards
+   - Leverage Pinia for state management
+   - Avoid custom CSS when Quasar utilities exist
+
+2. **Django/DRF Backend**:
+   - Use Django's built-in features (auth, middleware, settings)
+   - Follow DRF patterns for API design
+   - Use django-extensions and established packages over custom code
+   - Leverage Django's ORM and admin interface
+
+3. **Authentication & Security Pattern**:
+   - **JWT Authentication**: Pure JWT-based API authentication (no sessions)
+   - **Token Storage**: localStorage for JWT tokens (access + refresh)
+   - **No CSRF Protection**: Not needed for JWT Bearer token auth via headers
+   - **Single source**: Router guards handle auth state and navigation
+   - **Token refresh**: Axios interceptors handle token mechanics only
+   - **State management**: Pinia store for clean auth state
+   - **Security focus**: XSS prevention via CSP headers, not CSRF protection
+
+### Decision Hierarchy
+When solving problems, check solutions in this order:
+1. **Framework built-ins** (Quasar components, Django features)
+2. **Official plugins/packages** (Vue Router, DRF extensions)
+3. **Established ecosystem libraries** (Axios, Pinia plugins)
+4. **Custom implementation** (only if no framework solution exists)
+
+### Anti-Patterns to Avoid
+- ❌ **Multiple competing solutions** (e.g., custom CSS + Quasar utilities)
+- ❌ **Mixed responsibility patterns** (e.g., auth logic in multiple places)
+- ❌ **Framework bypassing** (e.g., custom responsive breakpoints when Quasar has them)
+- ❌ **Configuration duplication** (e.g., hardcoding URLs in multiple files)
+
 ## Project Structure
 ```
 dream-journal/
@@ -80,8 +120,8 @@ npm run dev > server.log 2>&1
 - **Note**: Log files are already in .gitignore (*.log pattern)
 
 ## URLs
-- **Backend API**: http://localhost:8000
-- **Django Admin**: http://localhost:8000/admin (admin/admin)
+- **Backend API**: http://localhost:8081
+- **Django Admin**: http://localhost:8081/admin (admin/admin)
 - **Frontend**: http://localhost:9000
 - **PostgreSQL**: localhost:5431 (dreamjournal/dreamjournal/dreamjournal)
 
@@ -210,6 +250,26 @@ docker compose down
 # View logs
 docker compose logs postgres
 ```
+
+## Security Architecture
+
+### Authentication Flow
+1. **Login**: User credentials → JWT tokens (access + refresh) stored in localStorage
+2. **API Requests**: Authorization header with Bearer token for all API calls
+3. **Token Refresh**: Automatic refresh via axios interceptors when access token expires
+4. **Logout**: Clear tokens from localStorage and redirect to login
+
+### Why No CSRF Protection
+- **JWT tokens in localStorage**: Not sent automatically with requests (unlike cookies)
+- **Authorization headers**: Must be set explicitly by JavaScript (CSRF can't do this)
+- **Stateless authentication**: No session cookies that could be exploited via CSRF
+- **Admin interface**: Django's built-in CSRF handles admin pages automatically
+
+### Security Measures
+- **HTTPS in production**: Prevents token interception
+- **Short-lived access tokens**: 1 hour expiration with automatic refresh
+- **Token rotation**: New refresh tokens on each refresh (prevents replay attacks)
+- **CORS configuration**: Restricts cross-origin requests to allowed origins
 
 ## Notes
 - Frontend automatically proxies `/api` requests to Django backend

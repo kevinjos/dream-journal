@@ -216,11 +216,7 @@ if not DEBUG:
     SESSION_COOKIE_SECURE = True
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Strict"
-    CSRF_COOKIE_SECURE = True
-    CSRF_COOKIE_HTTPONLY = (
-        False  # Allow JavaScript to read CSRF cookie for better performance
-    )
-    CSRF_COOKIE_SAMESITE = "Strict"
+    # CSRF cookie settings removed - we use JWT authentication, not CSRF tokens
 
 # Rate limiting
 ACCOUNT_RATE_LIMITS = {
@@ -235,6 +231,8 @@ REST_AUTH = {
     "USE_JWT": True,
     "JWT_AUTH_COOKIE": "auth-token",
     "JWT_AUTH_REFRESH_COOKIE": "refresh-token",
+    "JWT_AUTH_RETURN_EXPIRATION": True,
+    "JWT_AUTH_HTTPONLY": False,  # Allow JavaScript access to tokens
     "REGISTER_SERIALIZER": "dj_rest_auth.registration.serializers.RegisterSerializer",
 }
 

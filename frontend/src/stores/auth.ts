@@ -36,6 +36,8 @@ export const useAuthStore = defineStore('auth', {
     refreshToken: localStorage.getItem('refresh_token'),
     loading: false,
     error: null as string | null,
+    refreshPromise: null as Promise<boolean> | null, // Track ongoing refresh
+    initialized: false, // Track if auth store has been initialized
   }),
 
   getters: {
@@ -157,19 +159,33 @@ export const useAuthStore = defineStore('auth', {
         const response = await authApi.getUser();
         this.user = response.data;
       } catch {
-        console.warn('Failed to fetch user data');
-        this.clearAuth();
+        // Don't clear auth here - let the axios interceptor handle token refresh
+        // If the interceptor can't fix it, it will clear auth
       }
     },
 
     async refreshAccessToken(): Promise<boolean> {
+      // If refresh is already in progress, wait for it
+      if (this.refreshPromise) {
+        return await this.refreshPromise;
+      }
+
       if (!this.refreshToken) {
         this.clearAuth();
         return false;
       }
 
+      // Create and store the refresh promise to prevent concurrent refreshes
+      this.refreshPromise = this._performRefresh();
+      const result = await this.refreshPromise;
+      this.refreshPromise = null; // Clear the promise when done
+
+      return result;
+    },
+
+    async _performRefresh(): Promise<boolean> {
       try {
-        const response = await authApi.refreshToken(this.refreshToken);
+        const response = await authApi.refreshToken(this.refreshToken!);
         const { access, refresh } = response.data;
 
         // Update access token
@@ -192,6 +208,12 @@ export const useAuthStore = defineStore('auth', {
 
     // Initialize auth on store creation
     async init(): Promise<void> {
+      if (this.initialized) {
+        return;
+      }
+
+      this.initialized = true;
+
       if (this.accessToken) {
         api.defaults.headers.common['Authorization'] = `Bearer ${this.accessToken}`;
         await this.fetchUser();
