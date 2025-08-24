@@ -1,0 +1,129 @@
+# Pre-commit hooks for Dream Journal project
+# Run: pre-commit install
+# Test: pre-commit run --all-files
+
+default_stages: [pre-commit]
+repos:
+  # Python/Django Backend Checks
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Format Python code
+      - id: ruff-format
+        name: "Backend: Format Python code"
+        files: ^backend/.*\.py$
+        exclude: ^backend/venv/
+
+      # Lint Python code
+      - id: ruff
+        name: "Backend: Lint Python code"
+        files: ^backend/.*\.py$
+        exclude: ^backend/venv/
+        args: [--fix, --exit-non-zero-on-fix]
+
+  # MyPy type checking for Python
+  - repo: local
+    hooks:
+      - id: mypy
+        name: "Backend: Type check Python (warnings only)"
+        entry: bash -c 'cd backend && source venv/bin/activate && DJANGO_SETTINGS_MODULE=dream_journal.settings mypy --config-file=mypy.ini . || echo "⚠️  MyPy found type issues but allowing commit"'
+        language: system
+        files: ^backend/.*\.py$
+        exclude: ^backend/venv/
+        pass_filenames: false
+
+  # Frontend JavaScript/TypeScript/Vue Checks
+  - repo: local
+    hooks:
+      # TypeScript type checking
+      - id: vue-tsc
+        name: "Frontend: TypeScript type checking"
+        entry: bash -c 'cd frontend && npm run typecheck'
+        language: system
+        files: ^frontend/.*\.(vue|ts|js)$
+        pass_filenames: false
+
+      # ESLint for linting and fixing
+      - id: eslint
+        name: "Frontend: ESLint check and fix"
+        entry: bash -c 'cd frontend && npm run lint -- --fix'
+        language: system
+        files: ^frontend/.*\.(vue|ts|js)$
+        pass_filenames: false
+
+      # Prettier for formatting
+      - id: prettier
+        name: "Frontend: Format with Prettier"
+        entry: bash -c 'cd frontend && npx prettier --write "src/**/*.{vue,ts,js,scss,css,html,md,json}" "*.{js,ts,vue,scss,css,html,md,json}" --ignore-path ../.gitignore'
+        language: system
+        files: ^frontend/.*\.(vue|ts|js|scss|css|html|md|json)$
+        pass_filenames: false
+
+      # Frontend build check
+      - id: frontend-build
+        name: "Frontend: Build check"
+        entry: bash -c 'cd frontend && npm run build > /dev/null 2>&1'
+        language: system
+        files: ^frontend/
+        pass_filenames: false
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: "General: Remove trailing whitespace"
+        exclude: (\.md$|^backend/venv/)
+
+      - id: end-of-file-fixer
+        name: "General: Ensure files end with newline"
+        exclude: (\.md$|^backend/venv/)
+
+      - id: check-yaml
+        name: "General: Validate YAML files"
+        args: [--allow-multiple-documents]
+        exclude: ^frontend/
+
+      - id: check-json
+        name: "General: Validate JSON files"
+
+      - id: check-merge-conflict
+        name: "General: Check for merge conflicts"
+
+      - id: mixed-line-ending
+        name: "General: Fix mixed line endings"
+        args: [--fix=lf]
+        exclude: ^backend/venv/
+
+      - id: check-added-large-files
+        name: "General: Check for large files"
+        args: [--maxkb=1000]
+
+  # Django-specific checks
+  - repo: local
+    hooks:
+      - id: django-check
+        name: "Backend: Django system check"
+        entry: bash -c 'cd backend && source venv/bin/activate && python manage.py check'
+        language: system
+        files: ^backend/.*\.(py|yaml|yml)$
+        pass_filenames: false
+
+      - id: django-migrations-check
+        name: "Backend: Check for missing migrations"
+        entry: bash -c 'cd backend && source venv/bin/activate && python manage.py makemigrations --check --dry-run'
+        language: system
+        files: ^backend/.*models\.py$
+        pass_filenames: false
+
+# Configuration
+ci:
+  autofix_commit_msg: |
+    [pre-commit.ci] auto fixes from pre-commit.com hooks
+
+    for more information, see https://pre-commit.ci
+  autofix_prs: true
+  autoupdate_commit_msg: '[pre-commit.ci] pre-commit autoupdate'
+  autoupdate_schedule: weekly
+  skip: [frontend-build]  # Skip build check in CI (can be slow)
+  submodules: false

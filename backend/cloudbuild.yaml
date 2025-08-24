@@ -45,16 +45,16 @@ steps:
         export PROJECT_ID=${_PROJECT_ID}
         export REGION=${_REGION}
         export SHORT_SHA=${SHORT_SHA}
-        
+
         # Install envsubst if not available
         apt-get update && apt-get install -y gettext-base
-        
+
         # Apply namespace first if it exists
         if [[ -f "backend/k8s/namespace.yaml" ]]; then
           echo "Processing backend/k8s/namespace.yaml"
           envsubst < "backend/k8s/namespace.yaml" | kubectl apply -f -
         fi
-        
+
         # Process and apply other manifest files
         for file in backend/k8s/*.yaml; do
           if [[ -f "$$file" && "$$file" != "backend/k8s/namespace.yaml" ]]; then

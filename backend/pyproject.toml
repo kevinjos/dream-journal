@@ -38,8 +38,13 @@ docstring-code-format = true
 known-third-party = ["django", "rest_framework"]
 
 [tool.ruff.lint.per-file-ignores]
-"*/migrations/*" = ["E501", "ANN"]
+"*/migrations/*" = ["E501", "ANN", "RUF012"]  # Django migrations don't need ClassVar
 "*/settings/*" = ["F403", "F405", "ANN"]
 "*/tests/*" = ["ANN201"]  # Allow missing return type annotations in tests
 "manage.py" = ["ANN"]
 "*/urls.py" = ["ANN001"]  # Allow missing variable annotations in URL configs
+"*/admin.py" = ["TCH002"]  # Allow non-type-checking imports for Django types
+"*/serializers.py" = ["RUF012"]  # Allow mutable class attributes in Django Meta classes
+"*/views.py" = ["RUF012"]  # Allow mutable class attributes in Django ViewSet classes
+"*/nested_views.py" = ["RUF012"]  # Allow mutable class attributes in Django ViewSet classes
+"*/models.py" = ["RUF012", "ANN201", "ANN002", "ANN003"]  # Allow Django model patterns

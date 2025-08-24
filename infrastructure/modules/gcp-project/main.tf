@@ -265,7 +265,7 @@ resource "google_service_account_iam_binding" "workload_identity_binding" {
   members = [
     "serviceAccount:${local.project_id}.svc.id.goog[dream-journal/dream-journal-app]",
   ]
-  
+
   depends_on = [google_container_cluster.dream_journal]
 }
 
@@ -284,7 +284,7 @@ resource "google_artifact_registry_repository_iam_member" "cloudbuild_artifact_r
   repository = google_artifact_registry_repository.docker_repo.name
   role       = "roles/artifactregistry.writer"
   member     = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-  
+
   depends_on = [google_project_service.apis]
 }
 
@@ -293,7 +293,7 @@ resource "google_project_iam_member" "cloudbuild_gke_admin" {
   project = local.project_id
   role    = "roles/container.admin"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-  
+
   depends_on = [google_project_service.apis]
 }
 
@@ -302,7 +302,7 @@ resource "google_project_iam_member" "cloudbuild_secret_manager" {
   project = local.project_id
   role    = "roles/secretmanager.secretAccessor"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
-  
+
   depends_on = [google_project_service.apis]
 }
 
@@ -500,7 +500,7 @@ resource "google_compute_global_address" "dream_journal_ip" {
   name         = "dream-journal-ip"
   project      = local.project_id
   address_type = "EXTERNAL"
-  
+
   depends_on = [google_project_service.apis]
 }
 
@@ -534,11 +534,11 @@ resource "google_service_account" "cloudbuild_trigger_sa" {
 resource "google_project_iam_member" "cloudbuild_trigger_sa_permissions" {
   for_each = toset([
     "roles/cloudbuild.builds.editor",
-    "roles/source.reader", 
+    "roles/source.reader",
     "roles/logging.logWriter",
     "roles/editor"  # Broad permissions needed for infrastructure management
   ])
-  
+
   project = local.project_id
   role    = each.key
   member  = "serviceAccount:${google_service_account.cloudbuild_trigger_sa.email}"
@@ -614,7 +614,7 @@ resource "google_logging_metric" "new_user_registrations" {
     metric_kind = "DELTA"
     value_type  = "INT64"
     display_name = "New User Registrations"
-    
+
     labels {
       key         = "username"
       value_type  = "STRING"
@@ -634,7 +634,7 @@ resource "google_monitoring_notification_channel" "email_alerts" {
   display_name = "Dream Journal Email Alerts"
   project      = local.project_id
   type         = "email"
-  
+
   labels = {
     email_address = var.alert_email
   }
@@ -651,7 +651,7 @@ resource "google_monitoring_alert_policy" "new_user_alert" {
 
   conditions {
     display_name = "New user registration detected"
-    
+
     condition_threshold {
       filter          = "resource.type=\"k8s_container\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.new_user_registrations.name}\""
       duration        = "60s"

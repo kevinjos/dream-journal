@@ -18,14 +18,7 @@
           class="q-mr-sm"
         />
 
-        <q-btn
-          flat
-          dense
-          round
-          icon="logout"
-          aria-label="Logout"
-          @click="onLogout"
-        />
+        <q-btn flat dense round icon="logout" aria-label="Logout" @click="onLogout" />
       </q-toolbar>
     </q-header>
 
@@ -78,44 +71,44 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
-import { useAuthStore } from 'stores/auth'
-import { useThemeStore } from 'stores/theme'
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
+import { useAuthStore } from 'stores/auth';
+import { useThemeStore } from 'stores/theme';
 
-const router = useRouter()
-const $q = useQuasar()
-const authStore = useAuthStore()
-const themeStore = useThemeStore()
+const router = useRouter();
+const $q = useQuasar();
+const authStore = useAuthStore();
+const themeStore = useThemeStore();
 
-const leftDrawerOpen = ref<boolean>(false)
+const leftDrawerOpen = ref<boolean>(false);
 
 function toggleLeftDrawer(): void {
-  leftDrawerOpen.value = !leftDrawerOpen.value
+  leftDrawerOpen.value = !leftDrawerOpen.value;
 }
 
 function navigateTo(path: string): void {
-  void router.push(path)
+  void router.push(path);
 }
 
 function toggleTheme(): void {
-  themeStore.toggleTheme()
-  $q.dark.set(themeStore.isDark)
+  themeStore.toggleTheme();
+  $q.dark.set(themeStore.isDark);
 }
 
 const onLogout = async (): Promise<void> => {
-  await authStore.logout()
+  await authStore.logout();
   $q.notify({
     type: 'info',
     message: 'You have been logged out',
-    position: 'top'
-  })
-  void router.push('/auth/login')
-}
+    position: 'top',
+  });
+  void router.push('/auth/login');
+};
 
 // Initialize theme on component mount
 onMounted(() => {
-  $q.dark.set(themeStore.isDark)
-})
+  $q.dark.set(themeStore.isDark);
+});
 </script>

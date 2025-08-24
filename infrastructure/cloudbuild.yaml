@@ -4,13 +4,13 @@
 substitutions:
   # Sensitive values - CONFIGURE THESE IN CLOUD BUILD TRIGGER
   # _PROJECT_ID: Set this in Cloud Build trigger substitutions
-  # _GITHUB_OWNER: Set this in Cloud Build trigger substitutions  
+  # _GITHUB_OWNER: Set this in Cloud Build trigger substitutions
   # _GITHUB_REPO: Set this in Cloud Build trigger substitutions
   # _ALERT_EMAIL: Set this in Cloud Build trigger substitutions
-  
+
   # Safe defaults - no need to override in triggers
   _REGION: "us-central1"
-  _ZONE: "us-central1-a" 
+  _ZONE: "us-central1-a"
   _DB_TIER: "db-f1-micro"
   _ENVIRONMENT: "prod"
 

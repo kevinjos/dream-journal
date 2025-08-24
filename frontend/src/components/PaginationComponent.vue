@@ -11,7 +11,7 @@
       :disable="loading"
       @update:model-value="onPageChange"
     />
-    
+
     <!-- Results info -->
     <div class="full-width text-center q-mt-sm">
       <div class="text-caption text-grey-6">
@@ -22,49 +22,49 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed } from 'vue';
 
 interface Props {
-  currentPage: number
-  totalPages: number
-  totalItems: number
-  pageSize?: number
-  loading?: boolean
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  pageSize?: number;
+  loading?: boolean;
 }
 
 interface Emits {
-  (e: 'page-change', page: number): void
+  (e: 'page-change', page: number): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   pageSize: 20,
-  loading: false
-})
+  loading: false,
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 const currentPageModel = computed({
   get: () => props.currentPage,
-  set: (value: number) => {
+  set: () => {
     // This setter is needed for v-model but actual changes come through onPageChange
-  }
-})
+  },
+});
 
 const startItem = computed(() => {
-  if (props.totalItems === 0) return 0
-  return (props.currentPage - 1) * props.pageSize + 1
-})
+  if (props.totalItems === 0) return 0;
+  return (props.currentPage - 1) * props.pageSize + 1;
+});
 
 const endItem = computed(() => {
-  const calculated = props.currentPage * props.pageSize
-  return Math.min(calculated, props.totalItems)
-})
+  const calculated = props.currentPage * props.pageSize;
+  return Math.min(calculated, props.totalItems);
+});
 
 const onPageChange = (page: number): void => {
   if (page !== props.currentPage && !props.loading) {
-    emit('page-change', page)
+    emit('page-change', page);
   }
-}
+};
 </script>
 
 <style scoped>

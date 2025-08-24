@@ -28,7 +28,7 @@ FROM nginxinc/nginx-unprivileged:alpine
 # Copy built SPA from builder
 COPY --from=builder /app/dist/spa /usr/share/nginx/html
 
-# Copy nginx configuration  
+# Copy nginx configuration
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/nginx.conf
 
 # Expose port (unprivileged nginx uses 8080)

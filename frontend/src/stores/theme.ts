@@ -1,4 +1,4 @@
-import { defineStore, acceptHMRUpdate } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia';
 
 export const useThemeStore = defineStore('theme', {
   state: () => ({
@@ -6,32 +6,32 @@ export const useThemeStore = defineStore('theme', {
   }),
 
   getters: {
-    currentTheme: (state): 'dark' | 'light' => state.isDark ? 'dark' : 'light',
+    currentTheme: (state): 'dark' | 'light' => (state.isDark ? 'dark' : 'light'),
   },
 
   actions: {
     toggleTheme(): void {
-      this.isDark = !this.isDark
-      this.persistTheme()
+      this.isDark = !this.isDark;
+      this.persistTheme();
     },
 
     setTheme(theme: 'dark' | 'light'): void {
-      this.isDark = theme === 'dark'
-      this.persistTheme()
+      this.isDark = theme === 'dark';
+      this.persistTheme();
     },
 
     persistTheme(): void {
       // Persist theme preference
-      localStorage.setItem('theme', this.currentTheme)
+      localStorage.setItem('theme', this.currentTheme);
     },
 
     // This will be called from components that have access to $q
     getThemeState(): boolean {
-      return this.isDark
-    }
+      return this.isDark;
+    },
   },
-})
+});
 
 if (import.meta.hot) {
-  import.meta.hot.accept(acceptHMRUpdate(useThemeStore, import.meta.hot))
+  import.meta.hot.accept(acceptHMRUpdate(useThemeStore, import.meta.hot));
 }

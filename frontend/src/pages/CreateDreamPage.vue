@@ -3,13 +3,7 @@
     <div class="create-dream-container">
       <!-- Header -->
       <div class="row items-center q-mb-md">
-        <q-btn 
-          flat 
-          round 
-          icon="arrow_back" 
-          @click="router.push('/')"
-          class="q-mr-sm"
-        />
+        <q-btn flat round icon="arrow_back" @click="router.push('/')" class="q-mr-sm" />
         <div class="text-h6 text-weight-medium">{{ isEditMode ? 'Edit Dream' : 'New Dream' }}</div>
       </div>
 
@@ -26,16 +20,10 @@
             autofocus
           >
             <template v-slot:append>
-              <q-btn 
-                flat 
-                round 
-                icon="add" 
-                @click="addQuality"
-                :disabled="!qualityInput.trim()"
-              />
+              <q-btn flat round icon="add" @click="addQuality" :disabled="!qualityInput.trim()" />
             </template>
           </q-input>
-          
+
           <!-- Quality Chips -->
           <div v-if="dreamForm.quality_names?.length" class="q-mt-sm">
             <q-chip
@@ -92,97 +80,95 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { useQuasar } from 'quasar'
-import { api } from 'boot/axios'
-import type { DreamCreate, Dream } from 'components/models'
+import { ref, reactive, onMounted, computed } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useQuasar } from 'quasar';
+import { api } from 'boot/axios';
+import type { DreamCreate, Dream } from 'components/models';
 
-const router = useRouter()
-const route = useRoute()
-const $q = useQuasar()
-const loading = ref(false)
-const qualityInput = ref('')
+const router = useRouter();
+const route = useRoute();
+const $q = useQuasar();
+const loading = ref(false);
+const qualityInput = ref('');
 
-const dreamId = computed(() => route.params.id as string | undefined)
-const isEditMode = computed(() => !!dreamId.value)
+const dreamId = computed(() => route.params.id as string | undefined);
+const isEditMode = computed(() => !!dreamId.value);
 
 const dreamForm = reactive<DreamCreate>({
   description: '',
-  quality_names: []
-})
+  quality_names: [],
+});
 
 const addQuality = (): void => {
-  const quality = qualityInput.value.trim().toLowerCase()
+  const quality = qualityInput.value.trim().toLowerCase();
   if (quality && !dreamForm.quality_names?.includes(quality)) {
     if (!dreamForm.quality_names) {
-      dreamForm.quality_names = []
+      dreamForm.quality_names = [];
     }
-    dreamForm.quality_names.push(quality)
-    qualityInput.value = ''
+    dreamForm.quality_names.push(quality);
+    qualityInput.value = '';
   }
-}
+};
 
 const removeQuality = (index: number): void => {
   if (dreamForm.quality_names) {
-    dreamForm.quality_names.splice(index, 1)
+    dreamForm.quality_names.splice(index, 1);
   }
-}
+};
 
 const fetchDream = async (): Promise<void> => {
-  if (!isEditMode.value || !dreamId.value) return
-  
+  if (!isEditMode.value || !dreamId.value) return;
+
   try {
-    const response = await api.get<Dream>(`/api/dreams/${dreamId.value}/`)
-    const dream = response.data
-    
-    dreamForm.description = dream.description
-    dreamForm.quality_names = dream.qualities?.map(q => q.name) || []
-    
+    const response = await api.get<Dream>(`/api/dreams/${dreamId.value}/`);
+    const dream = response.data;
+
+    dreamForm.description = dream.description;
+    dreamForm.quality_names = dream.qualities?.map((q) => q.name) || [];
   } catch (error) {
-    console.error('Error fetching dream:', error)
+    console.error('Error fetching dream:', error);
     $q.notify({
       type: 'negative',
       message: 'Failed to load dream data.',
-      position: 'top'
-    })
-    void router.push('/')
+      position: 'top',
+    });
+    void router.push('/');
   }
-}
+};
 
 const onSubmit = async (): Promise<void> => {
-  loading.value = true
-  
+  loading.value = true;
+
   try {
     if (isEditMode.value) {
-      await api.put(`/api/dreams/${dreamId.value}/`, dreamForm)
+      await api.put(`/api/dreams/${dreamId.value}/`, dreamForm);
     } else {
-      await api.post('/api/dreams/', dreamForm)
+      await api.post('/api/dreams/', dreamForm);
     }
-    
+
     $q.notify({
       type: 'positive',
       message: 'Dream saved successfully!',
-      position: 'top'
-    })
-    
-    void router.push('/')
-    
+      position: 'top',
+    });
+
+    void router.push('/');
   } catch (error) {
-    console.error('Error saving dream:', error)
+    console.error('Error saving dream:', error);
     $q.notify({
       type: 'negative',
       message: 'Failed to save dream. Please try again.',
-      position: 'top'
-    })
+      position: 'top',
+    });
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 onMounted(() => {
-  void fetchDream()
-})
+  void fetchDream();
+});
 </script>
 
 <style scoped>

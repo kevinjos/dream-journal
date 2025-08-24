@@ -7,7 +7,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
@@ -16,47 +15,117 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Quality',
+            name="Quality",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text='A 128 character quality descriptor', max_length=128, validators=[django.core.validators.MinLengthValidator(2)])),
-                ('frequency', models.PositiveIntegerField(default=1, help_text='Number of dreams this quality appears in')),
-                ('created', models.DateTimeField(auto_now_add=True)),
-                ('user', models.ForeignKey(help_text='The user who owns this quality', on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="A 128 character quality descriptor",
+                        max_length=128,
+                        validators=[django.core.validators.MinLengthValidator(2)],
+                    ),
+                ),
+                (
+                    "frequency",
+                    models.PositiveIntegerField(
+                        default=1, help_text="Number of dreams this quality appears in"
+                    ),
+                ),
+                ("created", models.DateTimeField(auto_now_add=True)),
+                (
+                    "user",
+                    models.ForeignKey(
+                        help_text="The user who owns this quality",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'Qualities',
-                'ordering': ['name'],
+                "verbose_name_plural": "Qualities",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Dream',
+            name="Dream",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('description', models.TextField(blank=True, help_text='Description of the dream')),
-                ('created', models.DateTimeField(auto_now_add=True, help_text='When the dream entry was first created')),
-                ('updated', models.DateTimeField(auto_now=True, help_text='When the dream entry was last modified')),
-                ('user', models.ForeignKey(help_text='The user who owns this dream entry', on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
-                ('qualities', models.ManyToManyField(blank=True, help_text='Single-word qualities describing this dream', to='dreams.quality')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, help_text="Description of the dream"),
+                ),
+                (
+                    "created",
+                    models.DateTimeField(
+                        auto_now_add=True,
+                        help_text="When the dream entry was first created",
+                    ),
+                ),
+                (
+                    "updated",
+                    models.DateTimeField(
+                        auto_now=True,
+                        help_text="When the dream entry was last modified",
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        help_text="The user who owns this dream entry",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "qualities",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="Single-word qualities describing this dream",
+                        to="dreams.quality",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-created'],
+                "ordering": ["-created"],
             },
         ),
         migrations.AddIndex(
-            model_name='quality',
-            index=models.Index(fields=['user', 'name'], name='dreams_qual_user_id_913fad_idx'),
+            model_name="quality",
+            index=models.Index(
+                fields=["user", "name"], name="dreams_qual_user_id_913fad_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='quality',
-            index=models.Index(fields=['user', '-frequency'], name='dreams_qual_user_id_dc7de6_idx'),
+            model_name="quality",
+            index=models.Index(
+                fields=["user", "-frequency"], name="dreams_qual_user_id_dc7de6_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='quality',
-            unique_together={('user', 'name')},
+            name="quality",
+            unique_together={("user", "name")},
         ),
         migrations.AddIndex(
-            model_name='dream',
-            index=models.Index(fields=['user', '-created'], name='dreams_drea_user_id_10ca8c_idx'),
+            model_name="dream",
+            index=models.Index(
+                fields=["user", "-created"], name="dreams_drea_user_id_10ca8c_idx"
+            ),
         ),
     ]

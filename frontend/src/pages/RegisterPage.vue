@@ -3,9 +3,7 @@
     <q-card class="q-pa-lg" style="min-width: 400px">
       <q-card-section>
         <div class="text-h6 text-center q-mb-md">Dream Journal</div>
-        <div class="text-subtitle2 text-center text-grey-6 q-mb-lg">
-          Create your account
-        </div>
+        <div class="text-subtitle2 text-center text-grey-6 q-mb-lg">Create your account</div>
 
         <q-form @submit="onSubmit" class="q-gutter-md">
           <q-input
@@ -15,8 +13,8 @@
             outlined
             lazy-rules
             :rules="[
-              val => !!val || 'Username is required',
-              val => val.length >= 3 || 'Username must be at least 3 characters'
+              (val) => !!val || 'Username is required',
+              (val) => val.length >= 3 || 'Username must be at least 3 characters',
             ]"
             autocomplete="username"
           />
@@ -28,8 +26,8 @@
             outlined
             lazy-rules
             :rules="[
-              val => !!val || 'Email is required',
-              val => /.+@.+\..+/.test(val) || 'Please enter a valid email'
+              (val) => !!val || 'Email is required',
+              (val) => /.+@.+\..+/.test(val) || 'Please enter a valid email',
             ]"
             autocomplete="email"
           />
@@ -41,11 +39,13 @@
             outlined
             lazy-rules
             :rules="[
-              val => !!val || 'Password is required',
-              val => val.length >= 8 || 'Password must be at least 8 characters'
+              (val) => !!val || 'Password is required',
+              (val) => val.length >= 8 || 'Password must be at least 8 characters',
             ]"
             autocomplete="new-password"
-            :input-attrs="{ 'passwordrules': 'minlength: 8; required: upper; required: lower; required: digit;' }"
+            :input-attrs="{
+              passwordrules: 'minlength: 8; required: upper; required: lower; required: digit;',
+            }"
           />
 
           <q-input
@@ -55,8 +55,8 @@
             outlined
             lazy-rules
             :rules="[
-              val => !!val || 'Please confirm your password',
-              val => val === password1 || 'Passwords do not match'
+              (val) => !!val || 'Please confirm your password',
+              (val) => val === password1 || 'Passwords do not match',
             ]"
             autocomplete="new-password"
           />
@@ -78,14 +78,7 @@
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Already have an account? </span>
-          <q-btn
-            flat
-            dense
-            color="primary"
-            @click="$router.push('/auth/login')"
-          >
-            Sign in
-          </q-btn>
+          <q-btn flat dense color="primary" @click="$router.push('/auth/login')"> Sign in </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -93,35 +86,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
-import { useAuthStore } from 'stores/auth'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import { useQuasar } from 'quasar';
+import { useAuthStore } from 'stores/auth';
 
-const router = useRouter()
-const $q = useQuasar()
-const authStore = useAuthStore()
+const router = useRouter();
+const $q = useQuasar();
+const authStore = useAuthStore();
 
-const username = ref<string>('')
-const email = ref<string>('')
-const password1 = ref<string>('')
-const password2 = ref<string>('')
+const username = ref<string>('');
+const email = ref<string>('');
+const password1 = ref<string>('');
+const password2 = ref<string>('');
 
 const onSubmit = async (): Promise<void> => {
   const result = await authStore.register({
     username: username.value,
     email: email.value,
     password1: password1.value,
-    password2: password2.value
-  })
+    password2: password2.value,
+  });
 
   if (result.success) {
     $q.notify({
       type: 'positive',
       message: 'Account created successfully! Welcome to Dream Journal.',
-      position: 'top'
-    })
-    void router.push('/')
+      position: 'top',
+    });
+    void router.push('/');
   }
-}
+};
 </script>
