@@ -1,5 +1,6 @@
 import { defineStore, acceptHMRUpdate } from 'pinia';
 import { api } from 'boot/axios';
+import { authApi } from 'src/services/web';
 
 interface User {
   pk: number;
@@ -19,12 +20,6 @@ interface RegisterCredentials {
   email: string;
   password1: string;
   password2: string;
-}
-
-interface AuthResponse {
-  access: string;
-  refresh: string;
-  user: User;
 }
 
 interface ApiError {
@@ -103,7 +98,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null;
 
       try {
-        const response = await api.post<AuthResponse>('/auth/login/', credentials);
+        const response = await authApi.login(credentials);
         const { access, refresh, user } = response.data;
 
         this.setTokens(access, refresh);
@@ -126,7 +121,7 @@ export const useAuthStore = defineStore('auth', {
       this.error = null;
 
       try {
-        const response = await api.post<AuthResponse>('/auth/registration/', credentials);
+        const response = await authApi.register(credentials);
         const { access, refresh, user } = response.data;
 
         this.setTokens(access, refresh);
@@ -146,7 +141,7 @@ export const useAuthStore = defineStore('auth', {
       this.loading = true;
 
       try {
-        await api.post('/auth/logout/');
+        await authApi.logout();
       } catch {
         console.warn('Logout request failed, but clearing local auth anyway');
       } finally {
@@ -159,7 +154,7 @@ export const useAuthStore = defineStore('auth', {
       if (!this.accessToken) return;
 
       try {
-        const response = await api.get<User>('/auth/user/');
+        const response = await authApi.getUser();
         this.user = response.data;
       } catch {
         console.warn('Failed to fetch user data');
@@ -174,12 +169,7 @@ export const useAuthStore = defineStore('auth', {
       }
 
       try {
-        const response = await api.post<{ access: string; refresh?: string }>(
-          '/auth/token/refresh/',
-          {
-            refresh: this.refreshToken,
-          },
-        );
+        const response = await authApi.refreshToken(this.refreshToken);
         const { access, refresh } = response.data;
 
         // Update access token

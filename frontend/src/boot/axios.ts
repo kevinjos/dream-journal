@@ -20,7 +20,7 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 // "export default () => {}" function below (which runs individually
 // for each client)
 // Use relative URL for production, localhost for development
-const baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8081';
+const baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8081/api';
 const api = axios.create({ baseURL });
 
 // Track requests being retried to prevent infinite loops

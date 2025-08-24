@@ -98,7 +98,7 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from 'stores/auth';
-import { api } from 'boot/axios';
+import { dreamsApi, qualitiesApi } from 'src/services/web';
 import type { Dream } from 'components/models';
 import PaginationComponent from 'components/PaginationComponent.vue';
 
@@ -141,10 +141,9 @@ const fetchData = async (page: number = 1): Promise<void> => {
     if (page > 1) {
       params.append('page', page.toString());
     }
-    const dreamsUrl = `/api/dreams/${params.toString() ? '?' + params.toString() : ''}`;
 
     // Fetch recent dreams
-    const dreamsResponse = await api.get(dreamsUrl);
+    const dreamsResponse = await dreamsApi.list(params);
     const dreamsData = dreamsResponse.data;
 
     // Handle paginated response
@@ -167,7 +166,7 @@ const fetchData = async (page: number = 1): Promise<void> => {
     }
 
     // Fetch qualities for stats
-    const qualitiesResponse = await api.get('/api/qualities/');
+    const qualitiesResponse = await qualitiesApi.list();
     const qualities = qualitiesResponse.data.results || qualitiesResponse.data || [];
 
     // Update stats with total counts from API

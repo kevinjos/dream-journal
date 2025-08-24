@@ -83,8 +83,8 @@
 import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { api } from 'boot/axios';
-import type { DreamCreate, Dream } from 'components/models';
+import { dreamsApi } from 'src/services/web';
+import type { DreamCreate } from 'components/models';
 
 const router = useRouter();
 const route = useRoute();
@@ -121,7 +121,7 @@ const fetchDream = async (): Promise<void> => {
   if (!isEditMode.value || !dreamId.value) return;
 
   try {
-    const response = await api.get<Dream>(`/api/dreams/${dreamId.value}/`);
+    const response = await dreamsApi.get(dreamId.value);
     const dream = response.data;
 
     dreamForm.description = dream.description;
@@ -142,9 +142,11 @@ const onSubmit = async (): Promise<void> => {
 
   try {
     if (isEditMode.value) {
-      await api.put(`/api/dreams/${dreamId.value}/`, dreamForm);
+      if (dreamId.value) {
+        await dreamsApi.update(dreamId.value, dreamForm);
+      }
     } else {
-      await api.post('/api/dreams/', dreamForm);
+      await dreamsApi.create(dreamForm);
     }
 
     $q.notify({

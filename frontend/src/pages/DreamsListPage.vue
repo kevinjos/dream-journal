@@ -118,7 +118,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { api } from 'boot/axios';
+import { dreamsApi, qualitiesApi } from 'src/services/web';
 import type { Dream, Quality } from 'components/models';
 import PaginationComponent from 'components/PaginationComponent.vue';
 
@@ -213,7 +213,7 @@ const fetchDreams = async (page: number = 1): Promise<void> => {
     if (qualityId && !filterQuality.value) {
       // Quality in URL but not loaded yet, fetch it
       try {
-        const qualityResponse = await api.get(`/api/qualities/${qualityId}/`);
+        const qualityResponse = await qualitiesApi.get(qualityId);
         filterQuality.value = qualityResponse.data;
         params.append('quality', qualityId);
       } catch (error) {
@@ -231,10 +231,9 @@ const fetchDreams = async (page: number = 1): Promise<void> => {
     }
 
     // Build final URL
-    const apiUrl = `/api/dreams/${params.toString() ? '?' + params.toString() : ''}`;
 
     // Fetch dreams
-    const response = await api.get(apiUrl);
+    const response = await dreamsApi.list(params);
     const data = response.data;
 
     // Handle paginated response

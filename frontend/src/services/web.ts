@@ -1,0 +1,62 @@
+import { api } from 'boot/axios';
+import type { Dream, Quality } from 'components/models';
+
+// Auth API calls
+export const authApi = {
+  login: (credentials: { username: string; password: string }) =>
+    api.post('/auth/login/', credentials),
+
+  register: (credentials: {
+    username: string;
+    email: string;
+    password1: string;
+    password2: string;
+  }) => api.post('/auth/registration/', credentials),
+
+  logout: () => api.post('/auth/logout/'),
+
+  getUser: () => api.get('/auth/user/'),
+
+  refreshToken: (refreshToken: string) =>
+    api.post('/auth/token/refresh/', { refresh: refreshToken }),
+};
+
+// Dreams API calls
+export const dreamsApi = {
+  list: (params?: URLSearchParams) => {
+    const url = `/dreams/${params?.toString() ? '?' + params.toString() : ''}`;
+    return api.get(url);
+  },
+
+  get: (id: string | number) => api.get<Dream>(`/dreams/${id}/`),
+
+  create: (dream: Partial<Dream>) => api.post('/dreams/', dream),
+
+  update: (id: string | number, dream: Partial<Dream>) => api.put(`/dreams/${id}/`, dream),
+
+  delete: (id: string | number) => api.delete(`/dreams/${id}/`),
+};
+
+// Qualities API calls
+export const qualitiesApi = {
+  list: () => api.get('/qualities/'),
+
+  get: (id: string | number) => api.get<Quality>(`/qualities/${id}/`),
+
+  create: (quality: Partial<Quality>) => api.post('/qualities/', quality),
+
+  update: (id: string | number, quality: Partial<Quality>) => api.put(`/qualities/${id}/`, quality),
+
+  delete: (id: string | number) => api.delete(`/qualities/${id}/`),
+};
+
+// Nested dream-quality API calls
+export const dreamQualitiesApi = {
+  list: (dreamId: string | number) => api.get(`/dreams/${dreamId}/qualities/`),
+
+  update: (dreamId: string | number, qualityId: string | number, data: unknown) =>
+    api.put(`/dreams/${dreamId}/qualities/${qualityId}/`, data),
+
+  delete: (dreamId: string | number, qualityId: string | number) =>
+    api.delete(`/dreams/${dreamId}/qualities/${qualityId}/`),
+};

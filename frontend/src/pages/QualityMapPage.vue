@@ -34,7 +34,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { api } from 'boot/axios';
+import { qualitiesApi } from 'src/services/web';
 import * as d3 from 'd3';
 import type { Quality } from 'components/models';
 
@@ -259,7 +259,7 @@ const viewDreamsWithQuality = (quality: Quality): void => {
 const fetchQualities = async (): Promise<void> => {
   try {
     loading.value = true;
-    const response = await api.get('/api/qualities/');
+    const response = await qualitiesApi.list();
     qualities.value = response.data.results || response.data || [];
 
     // Wait for DOM to be fully rendered
