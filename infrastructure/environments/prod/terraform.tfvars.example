@@ -18,5 +18,8 @@
 github_owner = "your-github-username"
 github_repo  = "dream-journal"
 
+# Monitoring Configuration (REQUIRED)
+alert_email = "sensorium.kjs@gmail.com"
+
 # Note: Project ID is hardcoded to use your existing "Sensorium" project
 # (global-sun-469222-k6) in main.tf

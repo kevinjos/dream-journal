@@ -36,3 +36,9 @@ variable "github_repo" {
   description = "GitHub repository name"
   type        = string
 }
+
+# Monitoring Variables
+variable "alert_email" {
+  description = "Email address for monitoring alerts"
+  type        = string
+}

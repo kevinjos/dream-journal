@@ -6,6 +6,7 @@ substitutions:
   # _PROJECT_ID: Set this in Cloud Build trigger substitutions
   # _GITHUB_OWNER: Set this in Cloud Build trigger substitutions  
   # _GITHUB_REPO: Set this in Cloud Build trigger substitutions
+  # _ALERT_EMAIL: Set this in Cloud Build trigger substitutions
   
   # Safe defaults - no need to override in triggers
   _REGION: "us-central1"
@@ -35,6 +36,7 @@ steps:
           -var="project_id=${_PROJECT_ID}" \
           -var="github_owner=${_GITHUB_OWNER}" \
           -var="github_repo=${_GITHUB_REPO}" \
+          -var="alert_email=${_ALERT_EMAIL}" \
           -var="region=${_REGION}" \
           -var="zone=${_ZONE}" \
           -var="db_tier=${_DB_TIER}" \

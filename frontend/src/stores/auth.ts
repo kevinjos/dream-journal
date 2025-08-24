@@ -173,14 +173,21 @@ export const useAuthStore = defineStore('auth', {
       }
       
       try {
-        const response = await api.post<{ access: string }>('/auth/token/refresh/', {
+        const response = await api.post<{ access: string; refresh?: string }>('/auth/token/refresh/', {
           refresh: this.refreshToken
         })
-        const { access } = response.data
+        const { access, refresh } = response.data
         
+        // Update access token
         this.accessToken = access
         localStorage.setItem('access_token', access)
         api.defaults.headers.common['Authorization'] = `Bearer ${access}`
+        
+        // Update refresh token if a new one was provided (token rotation)
+        if (refresh) {
+          this.refreshToken = refresh
+          localStorage.setItem('refresh_token', refresh)
+        }
         
         return true
       } catch {

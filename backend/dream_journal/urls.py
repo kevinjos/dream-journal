@@ -28,4 +28,5 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('auth/', include('dj_rest_auth.urls')),
     path('auth/registration/', include('dj_rest_auth.registration.urls')),
+    path('', include('dreams.urls')),
 ]

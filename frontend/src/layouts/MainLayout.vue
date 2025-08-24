@@ -4,13 +4,9 @@
       <q-toolbar>
         <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" />
 
-        <q-toolbar-title>Dream Journal</q-toolbar-title>
+        <q-toolbar-title></q-toolbar-title>
 
         <q-space />
-
-        <div class="q-mr-md text-caption">
-          {{ authStore.user?.username }}
-        </div>
 
         <q-btn
           flat
@@ -55,12 +51,21 @@
           </q-item-section>
         </q-item>
 
-        <q-item clickable v-ripple @click="navigateTo('/dreams/new')">
+        <q-item clickable v-ripple @click="navigateTo('/dreams/create')">
           <q-item-section avatar>
             <q-icon name="add" />
           </q-item-section>
           <q-item-section>
             <q-item-label>Record Dream</q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <q-item clickable v-ripple @click="navigateTo('/qualities')">
+          <q-item-section avatar>
+            <q-icon name="cloud" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Dream Cloud</q-item-label>
           </q-item-section>
         </q-item>
       </q-list>

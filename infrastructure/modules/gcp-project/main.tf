@@ -39,7 +39,9 @@ resource "google_project_service" "apis" {
     "monitoring.googleapis.com",
     "logging.googleapis.com",
     "servicenetworking.googleapis.com",
-    "iam.googleapis.com"
+    "iam.googleapis.com",
+    "billingbudgets.googleapis.com",
+    "cloudbilling.googleapis.com"
   ])
 
   project = local.project_id
@@ -191,6 +193,13 @@ resource "google_container_cluster" "dream_journal" {
     }
   }
 
+  # Configure maintenance window for reliability
+  maintenance_policy {
+    daily_maintenance_window {
+      start_time = "03:00"
+    }
+  }
+
   depends_on = [
     google_project_service.apis,
     google_compute_network.main,
@@ -336,6 +345,26 @@ resource "google_sql_database_instance" "postgres" {
     database_flags {
       name  = "log_disconnections"
       value = "on"
+    }
+
+    # Security: Enable database auditing (log statements)
+    database_flags {
+      name  = "log_statement"
+      value = "all"
+    }
+
+    database_flags {
+      name  = "log_min_duration_statement"
+      value = "0"
+    }
+
+    # Security: Password policy enforcement
+    password_validation_policy {
+      min_length                  = 12
+      complexity                 = "COMPLEXITY_DEFAULT"
+      reuse_interval            = 5
+      disallow_username_substring = true
+      enable_password_policy     = true
     }
 
     maintenance_window {
@@ -566,4 +595,86 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   network                 = google_compute_network.main.id
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
+}
+
+# Log-based metric for new user registrations
+resource "google_logging_metric" "new_user_registrations" {
+  name   = "new_user_registrations"
+  project = local.project_id
+
+  filter = <<-EOT
+    resource.type="k8s_container"
+    resource.labels.namespace_name="dream-journal"
+    resource.labels.container_name="backend"
+    jsonPayload.name="django.security"
+    jsonPayload.message=~"User .* registered successfully"
+  EOT
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "INT64"
+    display_name = "New User Registrations"
+    
+    labels {
+      key         = "username"
+      value_type  = "STRING"
+      description = "Username of the registered user"
+    }
+  }
+
+  label_extractors = {
+    "username" = "EXTRACT(jsonPayload.message)"
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Notification channel for alerts (email)
+resource "google_monitoring_notification_channel" "email_alerts" {
+  display_name = "Dream Journal Email Alerts"
+  project      = local.project_id
+  type         = "email"
+  
+  labels = {
+    email_address = var.alert_email
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Alert policy for new user registrations
+resource "google_monitoring_alert_policy" "new_user_alert" {
+  display_name = "New User Registration Alert"
+  project      = local.project_id
+  combiner     = "OR"
+  enabled      = true
+
+  conditions {
+    display_name = "New user registration detected"
+    
+    condition_threshold {
+      filter          = "resource.type=\"k8s_container\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.new_user_registrations.name}\""
+      duration        = "60s"
+      comparison      = "COMPARISON_GT"
+      threshold_value = 0
+
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_RATE"
+      }
+
+      trigger {
+        count = 1
+      }
+    }
+  }
+
+  notification_channels = [
+    google_monitoring_notification_channel.email_alerts.name
+  ]
+
+  depends_on = [
+    google_project_service.apis,
+    google_logging_metric.new_user_registrations
+  ]
 }

@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allow_cidr',
+    # Local apps
+    'dreams',
 ]
 
 MIDDLEWARE = [
@@ -187,6 +189,33 @@ ACCOUNT_UNIQUE_EMAIL = True
 # Security settings
 ACCOUNT_PREVENT_ENUMERATION = True  # Prevent revealing if user accounts exist
 
+# Production security settings for GCP Load Balancer setup
+if not DEBUG:
+    # Trust Google Cloud Load Balancer's X-Forwarded-Proto header
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    
+    # DON'T use SSL redirect - GCP Load Balancer handles HTTP->HTTPS redirects
+    SECURE_SSL_REDIRECT = False
+    
+    # HSTS (HTTP Strict Transport Security)
+    SECURE_HSTS_SECONDS = 31536000  # 1 year
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+    
+    # Security headers
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    X_FRAME_OPTIONS = 'DENY'
+    
+    # Secure cookies (original request was HTTPS even though Django sees HTTP)
+    SESSION_COOKIE_SECURE = True
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = 'Strict'
+    CSRF_COOKIE_SECURE = True
+    CSRF_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_SAMESITE = 'Strict'
+
 # Rate limiting
 ACCOUNT_RATE_LIMITS = {
     'login_failed': '5/5m',  # 5 failed attempts per 5 minutes
@@ -201,4 +230,45 @@ REST_AUTH = {
     'JWT_AUTH_COOKIE': 'auth-token',
     'JWT_AUTH_REFRESH_COOKIE': 'refresh-token',
     'REGISTER_SERIALIZER': 'dj_rest_auth.registration.serializers.RegisterSerializer',
+}
+
+# Structured logging configuration
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO' if not DEBUG else 'DEBUG')
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'structured': {
+            'format': '{levelname} {asctime} {name} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'structured',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': LOG_LEVEL,
+    },
+    'loggers': {
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'dreams': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'ERROR',  # Only log request errors, not every request
+            'propagate': False,
+        },
+    },
 }

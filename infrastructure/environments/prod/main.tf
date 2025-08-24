@@ -39,4 +39,7 @@ module "gcp_project" {
   # GitHub Repository Configuration
   github_owner = var.github_owner
   github_repo  = var.github_repo
+  
+  # Monitoring Configuration
+  alert_email = var.alert_email
 }
