@@ -232,6 +232,7 @@ REST_AUTH = {
     "JWT_AUTH_REFRESH_COOKIE": "refresh-token",
     "JWT_AUTH_RETURN_EXPIRATION": True,
     "JWT_AUTH_HTTPONLY": False,  # Allow JavaScript access to tokens
+    "SESSION_LOGIN": False,  # Disable session authentication
     "REGISTER_SERIALIZER": "dj_rest_auth.registration.serializers.RegisterSerializer",
 }
 
