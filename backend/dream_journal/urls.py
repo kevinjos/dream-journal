@@ -17,6 +17,7 @@ Including another URLconf
 
 from django.contrib import admin
 from django.http import HttpRequest, JsonResponse
+from django.middleware.csrf import get_token
 from django.urls import include, path
 
 
@@ -25,9 +26,15 @@ def health_check(request: HttpRequest) -> JsonResponse:
     return JsonResponse({"status": "healthy"})
 
 
+def csrf_token(request: HttpRequest) -> JsonResponse:
+    """Get CSRF token for frontend"""
+    return JsonResponse({"csrfToken": get_token(request)})
+
+
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("health/", health_check, name="health_check"),
+    path("api/csrf/", csrf_token, name="csrf_token"),
     path("api/auth/", include("dj_rest_auth.urls")),
     path("api/auth/registration/", include("dj_rest_auth.registration.urls")),
     path("", include("dreams.urls")),  # dreams.urls already has api/ prefix

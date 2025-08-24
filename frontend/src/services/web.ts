@@ -1,6 +1,11 @@
 import { api } from 'boot/axios';
 import type { Dream, Quality } from 'components/models';
 
+// CSRF API calls
+export const csrfApi = {
+  getToken: () => api.get<{ csrfToken: string }>('/csrf/'),
+};
+
 // Auth API calls
 export const authApi = {
   login: (credentials: { username: string; password: string }) =>

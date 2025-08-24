@@ -217,7 +217,9 @@ if not DEBUG:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Strict"
     CSRF_COOKIE_SECURE = True
-    CSRF_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = (
+        False  # Allow JavaScript to read CSRF cookie for better performance
+    )
     CSRF_COOKIE_SAMESITE = "Strict"
 
 # Rate limiting

@@ -19,8 +19,6 @@ select = [
 ]
 ignore = [
     "E501",     # Line too long (handled by formatter)
-    "ANN101",   # Missing type annotation for self in method
-    "ANN102",   # Missing type annotation for cls in classmethod
 ]
 
 [tool.ruff.lint.flake8-annotations]
