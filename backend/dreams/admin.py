@@ -28,10 +28,8 @@ class DreamAdmin(admin.ModelAdmin):
     get_title.short_description = "Title"  # type: ignore[attr-defined]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Dream]:
-        """Only show dreams for the current user (except for superusers)"""
+        """Only show dreams for the current user - dreams are private"""
         qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
         return qs.filter(user=request.user)
 
 
@@ -43,8 +41,6 @@ class QualityAdmin(admin.ModelAdmin):
     readonly_fields = ("frequency", "created")
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Quality]:
-        """Only show qualities for the current user (except for superusers)"""
+        """Only show qualities for the current user - qualities are private"""
         qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
         return qs.filter(user=request.user)
