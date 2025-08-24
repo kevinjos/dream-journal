@@ -228,8 +228,6 @@ ACCOUNT_RATE_LIMITS = {
 # dj-rest-auth settings
 REST_AUTH = {
     "USE_JWT": True,
-    "JWT_AUTH_COOKIE": "auth-token",
-    "JWT_AUTH_REFRESH_COOKIE": "refresh-token",
     "JWT_AUTH_RETURN_EXPIRATION": True,
     "JWT_AUTH_HTTPONLY": False,  # Allow JavaScript access to tokens
     "SESSION_LOGIN": False,  # Disable session authentication
@@ -243,15 +241,15 @@ LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
-        "structured": {
-            "format": "{levelname} {asctime} {name} {process:d} {thread:d} {message}",
-            "style": "{",
+        "json": {
+            "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+            "format": "%(levelname)s %(name)s %(asctime)s %(message)s %(pathname)s %(lineno)d",
         },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "formatter": "structured",
+            "formatter": "json",
         },
     },
     "root": {
