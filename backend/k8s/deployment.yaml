@@ -24,6 +24,40 @@ spec:
         app.kubernetes.io/component: backend
     spec:
       serviceAccountName: dream-journal-app
+      initContainers:
+      # Run migrations before starting the main container
+      - name: django-migrate
+        image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dream-journal/backend:${SHORT_SHA}
+        command: ["/usr/bin/python3.11", "manage.py", "migrate", "--noinput"]
+        env:
+        - name: PYTHONPATH
+          value: "/app:/home/venv/lib/python3.11/site-packages"
+        - name: DEBUG
+          value: "False"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: secret-key
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: database-url
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          capabilities:
+            drop:
+            - ALL
       containers:
       - name: backend
         image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dream-journal/backend:${SHORT_SHA}
