@@ -74,13 +74,13 @@
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useAuthStore } from 'stores/auth';
 import { useThemeStore } from 'stores/theme';
+import { useAuth } from 'src/composables/useAuth';
 
 const router = useRouter();
 const $q = useQuasar();
-const authStore = useAuthStore();
 const themeStore = useThemeStore();
+const { logout } = useAuth();
 
 const leftDrawerOpen = ref<boolean>(false);
 
@@ -98,7 +98,7 @@ function toggleTheme(): void {
 }
 
 const onLogout = async (): Promise<void> => {
-  await authStore.logout();
+  await logout();
   $q.notify({
     type: 'info',
     message: 'You have been logged out',

@@ -44,6 +44,11 @@ spec:
             secretKeyRef:
               name: django-secrets
               key: database-url
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: sendgrid-api-key
         resources:
           requests:
             memory: "128Mi"
@@ -54,7 +59,45 @@ spec:
         securityContext:
           allowPrivilegeEscalation: false
           runAsNonRoot: true
-          runAsUser: 65532
+          runAsUser: 65531  # Different user for migration container
+          capabilities:
+            drop:
+            - ALL
+      # Create admin user after migrations
+      - name: django-create-admin
+        image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dream-journal/backend:${SHORT_SHA}
+        command: ["/usr/bin/python3.11", "manage.py", "create_admin"]
+        env:
+        - name: PYTHONPATH
+          value: "/app:/home/venv/lib/python3.11/site-packages"
+        - name: DEBUG
+          value: "False"
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: secret-key
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: database-url
+        - name: DJANGO_ADMIN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: django-admin-password
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65533  # Different user for admin creation container
           capabilities:
             drop:
             - ALL
@@ -82,6 +125,11 @@ spec:
             secretKeyRef:
               name: django-secrets
               key: database-url
+        - name: SENDGRID_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: django-secrets
+              key: sendgrid-api-key
         resources:
           requests:
             memory: "128Mi"

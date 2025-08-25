@@ -39,20 +39,23 @@ export default defineRouter(function ({ store }) {
     const { useAuthStore } = await import('stores/auth');
     const authStore = useAuthStore(store);
 
-    // Initialize auth store once on first navigation
-    if (!authStore.initialized) {
-      await authStore.init();
-    }
+    // Initialize auth on first navigation using Pinia state
+    await authStore.initializeAuth();
 
     // Check if route requires authentication
     const isAuthRoute = to.path.startsWith('/auth');
+    const isPublicAuthRoute =
+      to.path.startsWith('/auth/login') ||
+      to.path.startsWith('/auth/register') ||
+      to.path.startsWith('/auth/password-reset') ||
+      to.path.startsWith('/auth/email-verification');
     const isAuthenticated = authStore.isAuthenticated;
 
     if (!isAuthRoute && !isAuthenticated) {
       // Redirect to login if accessing protected route while unauthenticated
       return '/auth/login';
-    } else if (isAuthRoute && isAuthenticated) {
-      // Redirect to home if accessing auth routes while authenticated
+    } else if (isAuthRoute && isAuthenticated && isPublicAuthRoute) {
+      // Redirect to home if accessing public auth routes while authenticated
       return '/';
     }
     // Allow navigation (no explicit return needed)

@@ -41,26 +41,52 @@ export default defineBoot(({ app }) => {
 
       // Check if this is a 401 error and not already a retry attempt
       if (error.response?.status === 401 && originalRequest && !isRetryRequest(originalRequest)) {
-        // Avoid circular dependency by lazy importing the auth store
+        // Import auth store directly instead of composable to avoid Vue context issues
         const { useAuthStore } = await import('src/stores/auth');
         const authStore = useAuthStore();
 
-        // Attempt to refresh the access token
-        const refreshSuccess = await authStore.refreshAccessToken();
+        if (!authStore.refreshToken) {
+          authStore.clearAuth();
+          return Promise.reject(error);
+        }
 
-        if (refreshSuccess) {
+        try {
+          // Perform token refresh directly using the API
+          const { authApi } = await import('src/services/web');
+          const response = await authApi.refreshToken(authStore.refreshToken);
+          const { access, refresh } = response.data;
+
+          // Update tokens in store
+          authStore.setAccessToken(access);
+          if (refresh) {
+            authStore.setRefreshToken(refresh);
+          }
+
+          // Update axios default header
+          api.defaults.headers.common['Authorization'] = `Bearer ${access}`;
+
           // Retry the original request with new token
           const retryConfig = setRetryFlag(originalRequest);
-          // Ensure the retry uses the new token (it should already be in defaults, but be explicit)
-          const authHeader = api.defaults.headers.common['Authorization'];
-          if (authHeader) {
-            retryConfig.headers = retryConfig.headers || {};
-            retryConfig.headers['Authorization'] = authHeader;
-          }
+          retryConfig.headers = retryConfig.headers || {};
+          retryConfig.headers['Authorization'] = `Bearer ${access}`;
+
           return api.request(retryConfig);
-        } else {
-          // Refresh failed, user needs to login again
-          // The auth store will have already cleared tokens and redirected
+        } catch {
+          // Refresh failed, clear auth and redirect
+          authStore.clearAuth();
+          delete api.defaults.headers.common['Authorization'];
+
+          // Only redirect if we're in browser context
+          if (typeof window !== 'undefined') {
+            const { useRouter } = await import('vue-router');
+            try {
+              const router = useRouter();
+              void router.push('/auth/login');
+            } catch {
+              // If router is not available, use location
+              window.location.href = '/auth/login';
+            }
+          }
         }
       }
 

@@ -63,12 +63,14 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allow_cidr",
     # Local apps
+    "authentication",
     "dreams",
 ]
 
 MIDDLEWARE = [
     "allow_cidr.middleware.AllowCIDRMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "dream_journal.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -83,7 +85,7 @@ ROOT_URLCONF = "dream_journal.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -182,15 +184,50 @@ SIMPLE_JWT = {
 # Django Sites Framework
 SITE_ID = 1
 
-# Django Allauth settings
-ACCOUNT_EMAIL_VERIFICATION = "none"  # For development, skip email verification
-ACCOUNT_LOGIN_METHODS = {"username"}
-ACCOUNT_SIGNUP_FIELDS = ["username*", "email", "password1*", "password2*"]
-ACCOUNT_USERNAME_MIN_LENGTH = 1
-ACCOUNT_UNIQUE_EMAIL = True
+# Email Configuration - Use SendGrid for both dev and prod
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "smtp.sendgrid.net"
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = "apikey"
+EMAIL_HOST_PASSWORD = os.environ.get("SENDGRID_API_KEY", "")
 
-# Security settings
-ACCOUNT_PREVENT_ENUMERATION = True  # Prevent revealing if user accounts exist
+# Email settings for both dev and prod
+DEFAULT_FROM_EMAIL = "Dream Journal <noreply@sensorium.dev>"
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_SUBJECT_PREFIX = "[Dream Journal] "
+
+# Django Allauth settings
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
+ACCOUNT_LOGIN_ON_EMAIL_CONFIRMATION = False  # Don't auto-login after email verification
+ACCOUNT_CONFIRM_EMAIL_ON_GET = True
+ACCOUNT_PREVENT_ENUMERATION = True
+
+# Allauth-specific email subject prefix (separate from Django's EMAIL_SUBJECT_PREFIX)
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Dream Journal] "
+
+# Use custom account adapter to ensure correct email subject prefix
+ACCOUNT_ADAPTER = "authentication.adapters.CustomAccountAdapter"
+
+# For API-only usage, disable allauth's built-in URLs
+ACCOUNT_LOGOUT_ON_GET = True
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/"
+
+# Configure password reset to point to frontend
+if DEBUG:
+    FRONTEND_DOMAIN = "http://localhost:9000"
+else:
+    FRONTEND_DOMAIN = "https://sensorium.dev"
+
+# Override URL generation for email confirmations and password resets
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = "https" if not DEBUG else "http"
+
+# Configure allauth email confirmation URLs to use our custom redirect views
+# This ensures email links point to our backend redirect endpoints, not frontend directly
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "/"
+ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/"
 
 # Production security settings for GCP Load Balancer setup
 if not DEBUG:
@@ -231,7 +268,11 @@ REST_AUTH = {
     "JWT_AUTH_RETURN_EXPIRATION": True,
     "JWT_AUTH_HTTPONLY": False,  # Allow JavaScript access to tokens
     "SESSION_LOGIN": False,  # Disable session authentication
-    "REGISTER_SERIALIZER": "dj_rest_auth.registration.serializers.RegisterSerializer",
+    "REGISTER_SERIALIZER": "authentication.serializers.CustomRegisterSerializer",
+    # Custom login serializer that checks email verification
+    "LOGIN_SERIALIZER": "authentication.serializers.CustomLoginSerializer",
+    # Don't return user details on registration when email verification is required
+    "JWT_AUTH_COOKIE": None,
 }
 
 # Structured logging configuration

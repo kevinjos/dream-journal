@@ -61,16 +61,16 @@
             autocomplete="new-password"
           />
 
-          <div v-if="authStore.error" class="text-negative q-mb-md">
-            {{ authStore.error }}
+          <div v-if="error" class="text-negative q-mb-md">
+            {{ error }}
           </div>
 
           <q-btn
             type="submit"
             color="primary"
             class="full-width"
-            :loading="authStore.loading"
-            :disable="authStore.loading"
+            :loading="loading"
+            :disable="loading"
           >
             Create Account
           </q-btn>
@@ -89,32 +89,53 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useAuthStore } from 'stores/auth';
+import { useAuth } from 'src/composables/useAuth';
 
 const router = useRouter();
 const $q = useQuasar();
-const authStore = useAuthStore();
+const { register } = useAuth();
 
 const username = ref<string>('');
 const email = ref<string>('');
 const password1 = ref<string>('');
 const password2 = ref<string>('');
+const loading = ref<boolean>(false);
+const error = ref<string | null>(null);
 
 const onSubmit = async (): Promise<void> => {
-  const result = await authStore.register({
+  loading.value = true;
+  error.value = null;
+
+  const result = await register({
     username: username.value,
     email: email.value,
     password1: password1.value,
     password2: password2.value,
   });
 
+  loading.value = false;
+
   if (result.success) {
-    $q.notify({
-      type: 'positive',
-      message: 'Account created successfully! Welcome to Dream Journal.',
-      position: 'top',
-    });
-    void router.push('/');
+    if (result.requiresVerification) {
+      // Email verification required
+      $q.notify({
+        type: 'positive',
+        message:
+          result.message || 'Account created! Please check your email to verify your account.',
+        position: 'top',
+      });
+      void router.push('/auth/email-verification');
+    } else {
+      // User is logged in immediately (no email verification)
+      $q.notify({
+        type: 'positive',
+        message: 'Account created successfully! Welcome to Dream Journal.',
+        position: 'top',
+      });
+      void router.push('/');
+    }
+  } else if (result.error) {
+    error.value = result.error;
   }
 };
 </script>

@@ -1,0 +1,12 @@
+Hello {{ user.username }},
+
+Welcome to Dream Journal! Please confirm your email address by clicking the link below:
+
+{{ activate_url }}
+
+This link will expire in 3 days.
+
+If you didn't create an account with Dream Journal, please ignore this email.
+
+Best regards,
+The Dream Journal Team

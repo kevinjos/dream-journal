@@ -19,6 +19,19 @@ export const authApi = {
 
   refreshToken: (refreshToken: string) =>
     api.post('/auth/token/refresh/', { refresh: refreshToken }),
+
+  resetPassword: (email: string) => api.post('/auth/password/reset/', { email }),
+
+  resetPasswordConfirm: (data: {
+    uid: string;
+    token: string;
+    new_password1: string;
+    new_password2: string;
+  }) => api.post('/auth/password/reset/confirm/', data),
+
+  verifyEmail: (key: string) => api.post('/auth/registration/verify-email/', { key }),
+
+  resendEmailVerification: () => api.post('/auth/registration/resend-email/'),
 };
 
 // Dreams API calls

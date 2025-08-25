@@ -26,20 +26,26 @@
             autocomplete="current-password"
           />
 
-          <div v-if="authStore.error" class="text-negative q-mb-md">
-            {{ authStore.error }}
+          <div v-if="error" class="text-negative q-mb-md">
+            {{ error }}
           </div>
 
           <q-btn
             type="submit"
             color="primary"
             class="full-width"
-            :loading="authStore.loading"
-            :disable="authStore.loading"
+            :loading="loading"
+            :disable="loading"
           >
             Sign In
           </q-btn>
         </q-form>
+
+        <div class="text-center q-mt-md">
+          <q-btn flat dense color="primary" @click="$router.push('/auth/password-reset')">
+            Forgot your password?
+          </q-btn>
+        </div>
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Don't have an account? </span>
@@ -56,20 +62,27 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
-import { useAuthStore } from 'stores/auth';
+import { useAuth } from 'src/composables/useAuth';
 
 const router = useRouter();
 const $q = useQuasar();
-const authStore = useAuthStore();
+const { login } = useAuth();
 
 const username = ref<string>('');
 const password = ref<string>('');
+const loading = ref<boolean>(false);
+const error = ref<string | null>(null);
 
 const onSubmit = async (): Promise<void> => {
-  const result = await authStore.login({
+  loading.value = true;
+  error.value = null;
+
+  const result = await login({
     username: username.value,
     password: password.value,
   });
+
+  loading.value = false;
 
   if (result.success) {
     $q.notify({
@@ -78,6 +91,8 @@ const onSubmit = async (): Promise<void> => {
       position: 'top',
     });
     void router.push('/');
+  } else if (result.error) {
+    error.value = result.error;
   }
 };
 </script>

@@ -19,6 +19,8 @@ select = [
 ]
 ignore = [
     "E501",     # Line too long (handled by formatter)
+    "ANN002",   # Missing type annotation for *args
+    "ANN003",   # Missing type annotation for **kwargs
 ]
 
 [tool.ruff.lint.flake8-annotations]

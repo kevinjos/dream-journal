@@ -257,6 +257,26 @@ resource "google_secret_manager_secret_iam_binding" "django_secret_key_access" {
   ]
 }
 
+resource "google_secret_manager_secret_iam_binding" "django_admin_password_access" {
+  project   = local.project_id
+  secret_id = google_secret_manager_secret.django_admin_password.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+
+  members = [
+    "serviceAccount:${google_service_account.app_workload.email}",
+  ]
+}
+
+resource "google_secret_manager_secret_iam_binding" "sendgrid_api_key_access" {
+  project   = local.project_id
+  secret_id = google_secret_manager_secret.sendgrid_api_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+
+  members = [
+    "serviceAccount:${google_service_account.app_workload.email}",
+  ]
+}
+
 # Workload Identity binding
 resource "google_service_account_iam_binding" "workload_identity_binding" {
   service_account_id = google_service_account.app_workload.name
@@ -483,6 +503,53 @@ resource "google_secret_manager_secret_version" "django_secret_key" {
   secret      = google_secret_manager_secret.django_secret_key.id
   secret_data = random_password.django_secret_key.result
 }
+
+# Generate Django admin password
+resource "random_password" "django_admin_password" {
+  length  = 20
+  special = true
+}
+
+# Store Django admin password in Secret Manager
+resource "google_secret_manager_secret" "django_admin_password" {
+  secret_id = "django-admin-password"
+  project   = local.project_id
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "django_admin_password" {
+  secret      = google_secret_manager_secret.django_admin_password.id
+  secret_data = random_password.django_admin_password.result
+}
+
+# SendGrid API Key Secret
+resource "google_secret_manager_secret" "sendgrid_api_key" {
+  secret_id = "sendgrid-api-key"
+  project   = local.project_id
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Note: The actual SendGrid API key value should be added manually via console or CLI
+# for security reasons. Run this command after terraform apply:
+# echo -n "YOUR_SENDGRID_API_KEY" | gcloud secrets versions add sendgrid-api-key --data-file=-
 
 # Artifact Registry for container images
 resource "google_artifact_registry_repository" "docker_repo" {

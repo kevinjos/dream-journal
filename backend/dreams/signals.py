@@ -1,11 +1,6 @@
-import logging
-
-from allauth.account.signals import user_signed_up
-from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import m2m_changed, post_delete
 from django.dispatch import receiver
-from django.http import HttpRequest
 
 from .models import Dream, Quality
 
@@ -58,26 +53,3 @@ def cleanup_qualities_after_dream_deletion(
 
     # Delete qualities with frequency = 0
     user_qualities.filter(frequency=0).delete()
-
-
-# Security logging for monitoring
-security_logger = logging.getLogger("django.security")
-
-
-@receiver(user_signed_up)
-def log_user_registration(
-    sender: type[User], request: HttpRequest, user: User, **kwargs: dict[str, object]
-) -> None:
-    """
-    Log new user registrations to django.security logger for GCP monitoring.
-    This signal fires when a user successfully registers via allauth/dj-rest-auth.
-    """
-    ip_address = request.META.get("REMOTE_ADDR", "unknown")
-    user_agent = request.META.get("HTTP_USER_AGENT", "unknown")[
-        :100
-    ]  # Truncate long user agents
-
-    security_logger.info(
-        f"User {user.username} registered successfully from IP {ip_address} "
-        f"user_agent={user_agent} email={user.email}"
-    )

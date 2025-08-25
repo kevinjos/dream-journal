@@ -101,6 +101,17 @@ output "django_secret_key_secret_name" {
   value       = google_secret_manager_secret.django_secret_key.secret_id
 }
 
+output "django_admin_password_secret_name" {
+  description = "Name of the Secret Manager secret containing Django admin password"
+  value       = google_secret_manager_secret.django_admin_password.secret_id
+}
+
+output "django_admin_password" {
+  description = "Django admin password (sensitive - use 'terraform output -raw django_admin_password' to view)"
+  value       = random_password.django_admin_password.result
+  sensitive   = true
+}
+
 # Service Account Outputs
 output "app_service_account_email" {
   description = "Email of the application service account for Workload Identity"

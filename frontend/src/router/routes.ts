@@ -8,6 +8,16 @@ const routes: RouteRecordRaw[] = [
     children: [
       { path: 'login', component: () => import('pages/LoginPage.vue') },
       { path: 'register', component: () => import('pages/RegisterPage.vue') },
+      { path: 'password-reset', component: () => import('pages/PasswordResetPage.vue') },
+      {
+        path: 'password-reset/confirm/:uid/:token',
+        component: () => import('pages/PasswordResetConfirmPage.vue'),
+      },
+      { path: 'email-verification', component: () => import('pages/EmailVerificationPage.vue') },
+      {
+        path: 'email-verification/confirm/:key',
+        component: () => import('pages/EmailVerificationConfirmPage.vue'),
+      },
     ],
   },
 
