@@ -119,7 +119,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { dreamsApi, qualitiesApi } from 'src/services/web';
-import type { Dream, Quality } from 'components/models';
+import type { Dream, Quality } from 'src/types/models';
 import PaginationComponent from 'components/PaginationComponent.vue';
 
 const router = useRouter();

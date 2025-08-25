@@ -1,7 +1,12 @@
 import { useAuthStore } from 'stores/auth';
 import { authApi } from 'src/services/web';
 import { api } from 'boot/axios';
-import { formatApiError, type ApiError } from 'src/utils/errorHandling';
+import {
+  formatApiError,
+  formatAuthError,
+  type ApiError,
+  type AuthError,
+} from 'src/utils/errorHandling';
 
 interface LoginCredentials {
   username: string;
@@ -20,7 +25,12 @@ export function useAuth() {
 
   const login = async (
     credentials: LoginCredentials,
-  ): Promise<{ success: boolean; error?: string }> => {
+  ): Promise<{
+    success: boolean;
+    error?: string;
+    requiresEmailVerification?: boolean | undefined;
+    email?: string | undefined;
+  }> => {
     try {
       const response = await authApi.login(credentials);
       const { access, refresh, user } = response.data;
@@ -33,8 +43,14 @@ export function useAuth() {
 
       return { success: true };
     } catch (err) {
-      const error = formatApiError(err as ApiError);
-      return { success: false, error };
+      // Use formatAuthError for better error handling
+      const authErrorResult = formatAuthError(err as AuthError);
+      return {
+        success: false,
+        error: authErrorResult.message,
+        requiresEmailVerification: authErrorResult.requiresEmailVerification,
+        email: authErrorResult.email,
+      };
     }
   };
 

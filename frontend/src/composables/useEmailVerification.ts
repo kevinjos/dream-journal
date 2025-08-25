@@ -12,9 +12,12 @@ export function useEmailVerification() {
     }
   };
 
-  const resendEmailVerification = async (): Promise<{ success: boolean; error?: string }> => {
+  const resendEmailVerification = async (data: {
+    email?: string;
+    username?: string;
+  }): Promise<{ success: boolean; error?: string }> => {
     try {
-      await authApi.resendEmailVerification();
+      await authApi.resendEmailVerification(data);
       return { success: true };
     } catch (err) {
       const error = formatApiError(err as ApiError);

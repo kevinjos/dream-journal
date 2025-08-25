@@ -3,7 +3,7 @@
     <div class="create-dream-container">
       <!-- Header -->
       <div class="row items-center q-mb-md">
-        <q-btn flat round icon="arrow_back" @click="router.push('/')" class="q-mr-sm" />
+        <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
         <div class="text-h6 text-weight-medium">{{ isEditMode ? 'Edit Dream' : 'New Dream' }}</div>
       </div>
 
@@ -84,7 +84,7 @@ import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { dreamsApi } from 'src/services/web';
-import type { DreamCreate } from 'components/models';
+import type { DreamCreate } from 'src/types/models';
 
 const router = useRouter();
 const route = useRoute();
@@ -166,6 +166,10 @@ const onSubmit = async (): Promise<void> => {
   } finally {
     loading.value = false;
   }
+};
+
+const goBack = (): void => {
+  void router.push('/');
 };
 
 onMounted(() => {

@@ -31,7 +31,7 @@
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Already verified? </span>
-          <q-btn flat dense color="primary" @click="$router.push('/auth/login')"> Sign in </q-btn>
+          <q-btn flat dense color="primary" @click="goToLogin"> Sign in </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -40,7 +40,12 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useEmailVerification } from 'src/composables/useEmailVerification';
+import { AUTH_ROUTES } from 'src/router/paths';
+
+const router = useRouter();
+const route = useRoute();
 
 const { resendEmailVerification } = useEmailVerification();
 
@@ -53,7 +58,22 @@ const resendVerification = async (): Promise<void> => {
   error.value = null;
   success.value = null;
 
-  const result = await resendEmailVerification();
+  // Get email or username from route query params
+  const email = route.query.email as string | undefined;
+  const username = route.query.username as string | undefined;
+
+  if (!email && !username) {
+    error.value = 'No email or username provided. Please try logging in again.';
+    loading.value = false;
+    return;
+  }
+
+  // Build data object with only defined values
+  const data: { email?: string; username?: string } = {};
+  if (email) data.email = email;
+  if (username) data.username = username;
+
+  const result = await resendEmailVerification(data);
 
   if (result.success) {
     success.value = 'Verification email sent! Check your inbox.';
@@ -62,5 +82,9 @@ const resendVerification = async (): Promise<void> => {
   }
 
   loading.value = false;
+};
+
+const goToLogin = (): void => {
+  void router.push(AUTH_ROUTES.LOGIN);
 };
 </script>

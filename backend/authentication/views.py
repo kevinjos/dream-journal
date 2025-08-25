@@ -128,16 +128,52 @@ def verify_email(request: Request) -> Response:
 def resend_email_verification(request: Request) -> Response:
     """
     API endpoint to resend email verification for a user.
-    Expects 'email' in the request data.
+    Expects 'email' or 'username' in the request data.
     """
     from django.core.exceptions import ValidationError
     from django.core.validators import validate_email
 
     email = request.data.get("email")
-    if not email:
+    username = request.data.get("username")
+
+    if not email and not username:
         return Response(
-            {"detail": "Email address is required."}, status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Email address or username is required."},
+            status=status.HTTP_400_BAD_REQUEST,
         )
+
+    # If username provided, look up the user's email
+    if username and not email:
+        try:
+            from django.contrib.auth import get_user_model
+
+            User = get_user_model()
+
+            # Try to find user by username
+            user = User.objects.get(username=str(username).strip())
+
+            # Get the user's email (try from EmailAddress first, then user model)
+            from allauth.account.models import EmailAddress
+
+            email_address = EmailAddress.objects.filter(user=user, primary=True).first()
+            email = (
+                email_address.email if email_address else getattr(user, "email", None)
+            )
+
+            if not email:
+                return Response(
+                    {"detail": "No email address found for this user."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        except User.DoesNotExist:
+            # Don't reveal if user exists or not for security
+            return Response(
+                {
+                    "detail": "If this account exists, a verification link has been sent."
+                },
+                status=status.HTTP_200_OK,
+            )
 
     # Sanitize and validate email
     email = str(email).strip().lower()

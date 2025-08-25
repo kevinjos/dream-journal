@@ -76,6 +76,7 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useThemeStore } from 'stores/theme';
 import { useAuth } from 'src/composables/useAuth';
+import { AUTH_ROUTES } from 'src/router/paths';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -104,7 +105,7 @@ const onLogout = async (): Promise<void> => {
     message: 'You have been logged out',
     position: 'top',
   });
-  void router.push('/auth/login');
+  void router.push(AUTH_ROUTES.LOGIN);
 };
 
 // Initialize theme on component mount

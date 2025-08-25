@@ -14,63 +14,92 @@ class CustomLoginSerializer(LoginSerializer):
     """Custom login serializer that enforces email verification when mandatory."""
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
-        # First run the parent validation
-        validated_data = super().validate(attrs)
-
-        # Check if email verification is mandatory
+        # Check if email verification is mandatory before parent validation
         from django.conf import settings
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
 
         if getattr(settings, "ACCOUNT_EMAIL_VERIFICATION", None) == "mandatory":
-            user = validated_data.get("user")
-            if user:
-                # Check if user has a verified email address
-                verified_email_exists = EmailAddress.objects.filter(
-                    user=user, verified=True
-                ).exists()
+            # Get the user before parent validation to check email verification
+            username = attrs.get("username")
+            password = attrs.get("password")
 
-                if not verified_email_exists:
-                    # Get user's primary email address
-                    email_address = EmailAddress.objects.filter(
-                        user=user, primary=True
-                    ).first()
-                    user_email = email_address.email if email_address else user.email
+            if username and password:
+                try:
+                    # Try to find the user (could be username or email depending on ACCOUNT_AUTHENTICATION_METHOD)
+                    user = User.objects.get(username=username)
+                except User.DoesNotExist:
+                    try:
+                        # Try by email if username lookup failed
+                        user = User.objects.get(email=username)
+                    except User.DoesNotExist:
+                        user = None
 
-                    # Check if there's a recent verification email that hasn't expired
-                    from datetime import timedelta
+                if user:
+                    # Check if user has a verified email address
+                    verified_email_exists = EmailAddress.objects.filter(
+                        user=user, verified=True
+                    ).exists()
 
-                    from allauth.account import app_settings
-                    from allauth.account.models import EmailConfirmation
-                    from django.utils import timezone
+                    if not verified_email_exists:
+                        # Check if password is correct before showing email verification error
+                        from django.contrib.auth import authenticate
 
-                    can_resend = True
-                    if email_address:
-                        recent_confirmation = EmailConfirmation.objects.filter(
-                            email_address=email_address,
-                            sent__gte=timezone.now()
-                            - timedelta(
-                                days=app_settings.EMAIL_CONFIRMATION_EXPIRE_DAYS
-                            ),
-                        ).first()
+                        authenticated_user = authenticate(
+                            username=username, password=password
+                        )
 
-                        if (
-                            recent_confirmation
-                            and not recent_confirmation.key_expired()
-                        ):
-                            can_resend = False
+                        if authenticated_user:
+                            # User exists and password is correct, but email not verified
+                            # Get user's primary email address
+                            email_address = EmailAddress.objects.filter(
+                                user=user, primary=True
+                            ).first()
+                            user_email = (
+                                email_address.email
+                                if email_address
+                                else getattr(user, "email", username)
+                            )
 
-                    # Return structured error for better frontend UX
-                    error_data = {
-                        "email_verification_required": True,
-                        "detail": "Email verification required. Please check your email and click the verification link."
-                        if not can_resend
-                        else "Email verification required. You can resend the verification email.",
-                        "can_resend": can_resend,
-                        "email": user_email,
-                    }
+                            # Check if there's a recent verification email that hasn't expired
+                            from datetime import timedelta
 
-                    raise serializers.ValidationError(error_data)
+                            from allauth.account import app_settings
+                            from allauth.account.models import EmailConfirmation
+                            from django.utils import timezone
 
-        return validated_data
+                            can_resend = True
+                            if email_address:
+                                recent_confirmation = EmailConfirmation.objects.filter(
+                                    email_address=email_address,
+                                    sent__gte=timezone.now()
+                                    - timedelta(
+                                        days=app_settings.EMAIL_CONFIRMATION_EXPIRE_DAYS
+                                    ),
+                                ).first()
+
+                                if (
+                                    recent_confirmation
+                                    and not recent_confirmation.key_expired()
+                                ):
+                                    can_resend = False
+
+                            # Return structured error for better frontend UX
+                            error_data = {
+                                "email_verification_required": True,
+                                "detail": "Email verification required. Please check your email and click the verification link."
+                                if not can_resend
+                                else "Email verification required. You can resend the verification email.",
+                                "can_resend": can_resend,
+                                "email": user_email,
+                            }
+
+                            raise serializers.ValidationError(error_data)
+
+        # If we get here, either email verification is not mandatory or user is verified
+        # Run the parent validation
+        return super().validate(attrs)
 
 
 class CustomRegisterSerializer(RegisterSerializer):

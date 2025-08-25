@@ -16,7 +16,7 @@
             Your email has been successfully verified.
           </div>
           <q-icon name="check_circle" color="positive" size="64px" class="q-mb-md" />
-          <q-btn color="primary" class="full-width" @click="$router.push('/auth/login')">
+          <q-btn color="primary" class="full-width" @click="router.push(AUTH_ROUTES.LOGIN)">
             Continue to Login
           </q-btn>
         </div>
@@ -31,12 +31,12 @@
           <q-btn
             color="primary"
             class="full-width q-mb-md"
-            @click="$router.push('/auth/email-verification')"
+            @click="router.push(AUTH_ROUTES.EMAIL_VERIFICATION)"
           >
             Request New Verification Email
           </q-btn>
 
-          <q-btn flat color="primary" class="full-width" @click="$router.push('/auth/login')">
+          <q-btn flat color="primary" class="full-width" @click="router.push(AUTH_ROUTES.LOGIN)">
             Back to Login
           </q-btn>
         </div>
@@ -47,8 +47,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useEmailVerification } from 'src/composables/useEmailVerification';
+import { AUTH_ROUTES } from 'src/router/paths';
+
+const router = useRouter();
 
 const route = useRoute();
 const { verifyEmail } = useEmailVerification();

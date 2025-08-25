@@ -78,7 +78,9 @@
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Already have an account? </span>
-          <q-btn flat dense color="primary" @click="$router.push('/auth/login')"> Sign in </q-btn>
+          <q-btn flat dense color="primary" @click="router.push(AUTH_ROUTES.LOGIN)">
+            Sign in
+          </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -90,6 +92,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuth } from 'src/composables/useAuth';
+import { AUTH_ROUTES, APP_ROUTES } from 'src/router/paths';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -124,7 +127,7 @@ const onSubmit = async (): Promise<void> => {
           result.message || 'Account created! Please check your email to verify your account.',
         position: 'top',
       });
-      void router.push('/auth/email-verification');
+      void router.push(AUTH_ROUTES.EMAIL_VERIFICATION);
     } else {
       // User is logged in immediately (no email verification)
       $q.notify({
@@ -132,7 +135,7 @@ const onSubmit = async (): Promise<void> => {
         message: 'Account created successfully! Welcome to Dream Journal.',
         position: 'top',
       });
-      void router.push('/');
+      void router.push(APP_ROUTES.HOME);
     }
   } else if (result.error) {
     error.value = result.error;

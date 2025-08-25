@@ -32,7 +32,7 @@ import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { qualitiesApi } from 'src/services/web';
 import * as d3 from 'd3';
-import type { Quality } from 'components/models';
+import type { Quality } from 'src/types/models';
 
 interface QualityNode extends d3.SimulationNodeDatum, Quality {
   fontSize: number;

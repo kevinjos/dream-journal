@@ -1,5 +1,5 @@
 import { api } from 'boot/axios';
-import type { Dream, Quality } from 'components/models';
+import type { Dream, Quality } from 'src/types/models';
 
 // Auth API calls
 export const authApi = {
@@ -31,7 +31,8 @@ export const authApi = {
 
   verifyEmail: (key: string) => api.post('/auth/registration/verify-email/', { key }),
 
-  resendEmailVerification: () => api.post('/auth/registration/resend-email/'),
+  resendEmailVerification: (data: { email?: string; username?: string }) =>
+    api.post('/auth/registration/resend-email/', data),
 };
 
 // Dreams API calls

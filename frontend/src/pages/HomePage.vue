@@ -99,7 +99,7 @@ import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from 'stores/auth';
 import { dreamsApi, qualitiesApi } from 'src/services/web';
-import type { Dream } from 'components/models';
+import type { Dream } from 'src/types/models';
 import PaginationComponent from 'components/PaginationComponent.vue';
 
 const router = useRouter();

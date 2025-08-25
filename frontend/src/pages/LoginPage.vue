@@ -42,14 +42,14 @@
         </q-form>
 
         <div class="text-center q-mt-md">
-          <q-btn flat dense color="primary" @click="$router.push('/auth/password-reset')">
+          <q-btn flat dense color="primary" @click="router.push(AUTH_ROUTES.PASSWORD_RESET)">
             Forgot your password?
           </q-btn>
         </div>
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Don't have an account? </span>
-          <q-btn flat dense color="primary" @click="$router.push('/auth/register')">
+          <q-btn flat dense color="primary" @click="router.push(AUTH_ROUTES.REGISTER)">
             Sign up
           </q-btn>
         </div>
@@ -63,6 +63,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { useAuth } from 'src/composables/useAuth';
+import { AUTH_ROUTES, APP_ROUTES, withQuery } from 'src/router/paths';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -90,7 +91,21 @@ const onSubmit = async (): Promise<void> => {
       message: 'Welcome back!',
       position: 'top',
     });
-    void router.push('/');
+    void router.push(APP_ROUTES.HOME);
+  } else if (result.requiresEmailVerification) {
+    // Route to email verification page with the email
+    $q.notify({
+      type: 'warning',
+      message: 'Email verification required',
+      caption: result.error || 'Please verify your email before logging in.',
+      position: 'top',
+      timeout: 5000,
+    });
+    void router.push(
+      withQuery(AUTH_ROUTES.EMAIL_VERIFICATION, {
+        username: username.value,
+      }),
+    );
   } else if (result.error) {
     error.value = result.error;
   }
