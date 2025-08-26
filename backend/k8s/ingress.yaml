@@ -12,24 +12,20 @@ metadata:
     app.kubernetes.io/name: dream-journal
 spec:
   rules:
+  - host: admin.sensorium.dev
+    http:
+      paths:
+      - path: /*
+        pathType: ImplementationSpecific
+        backend:
+          service:
+            name: backend-service
+            port:
+              number: 80
   - host: sensorium.dev
     http:
       paths:
       - path: /api/*
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: backend-service
-            port:
-              number: 80
-      - path: /admin/*
-        pathType: ImplementationSpecific
-        backend:
-          service:
-            name: backend-service
-            port:
-              number: 80
-      - path: /static/*
         pathType: ImplementationSpecific
         backend:
           service:
@@ -52,3 +48,4 @@ metadata:
 spec:
   domains:
     - sensorium.dev
+    - admin.sensorium.dev

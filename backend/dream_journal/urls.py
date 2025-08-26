@@ -67,18 +67,18 @@ urlpatterns = [
     ),
     # Custom redirect views - MUST come before allauth URLs to take precedence
     path(
-        "accounts/confirm-email/<key>/",
+        "api/accounts/confirm-email/<key>/",
         email_verification_redirect,
         name="account_confirm_email",
     ),
     path(
-        "password-reset/confirm/<uidb64>/<token>/",
+        "api/password-reset/confirm/<uidb64>/<token>/",
         password_reset_redirect,
         name="password_reset_confirm",
     ),
     # Minimal allauth URLs - only for URL pattern names that dj_rest_auth needs
     # We need some allauth URLs for the registration flow to work
-    path("accounts/", include("allauth.urls")),
+    path("api/accounts/", include("allauth.urls")),
     path("", include("dreams.urls")),  # dreams.urls already has api/ prefix
     # Serve static files in production (admin CSS/JS)
     re_path(r"^static/(?P<path>.*)$", serve, {"document_root": settings.STATIC_ROOT}),
