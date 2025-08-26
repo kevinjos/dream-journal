@@ -39,7 +39,7 @@
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Remember your password? </span>
-          <q-btn flat dense color="primary" @click="$router.push('/auth/login')"> Sign in </q-btn>
+          <q-btn flat dense color="primary" @click="goToLogin"> Sign in </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -48,9 +48,11 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { usePasswordReset } from 'src/composables/usePasswordReset';
 
 const { resetPassword } = usePasswordReset();
+const router = useRouter();
 
 const email = ref<string>('');
 const error = ref<string | null>(null);
@@ -72,5 +74,9 @@ const onSubmit = async (): Promise<void> => {
   }
 
   loading.value = false;
+};
+
+const goToLogin = (): void => {
+  void router.push('/auth/login');
 };
 </script>

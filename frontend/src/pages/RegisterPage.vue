@@ -78,9 +78,7 @@
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Already have an account? </span>
-          <q-btn flat dense color="primary" @click="router.push(AUTH_ROUTES.LOGIN)">
-            Sign in
-          </q-btn>
+          <q-btn flat dense color="primary" @click="goToLogin"> Sign in </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -140,5 +138,9 @@ const onSubmit = async (): Promise<void> => {
   } else if (result.error) {
     error.value = result.error;
   }
+};
+
+const goToLogin = (): void => {
+  void router.push(AUTH_ROUTES.LOGIN);
 };
 </script>

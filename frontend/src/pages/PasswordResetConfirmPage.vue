@@ -50,7 +50,7 @@
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Remember your password? </span>
-          <q-btn flat dense color="primary" @click="$router.push('/auth/login')"> Sign in </q-btn>
+          <q-btn flat dense color="primary" @click="goToLogin"> Sign in </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -118,5 +118,9 @@ const onSubmit = async (): Promise<void> => {
   }
 
   loading.value = false;
+};
+
+const goToLogin = (): void => {
+  void router.push('/auth/login');
 };
 </script>

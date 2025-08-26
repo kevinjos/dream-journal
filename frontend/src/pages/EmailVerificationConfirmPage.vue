@@ -16,9 +16,7 @@
             Your email has been successfully verified.
           </div>
           <q-icon name="check_circle" color="positive" size="64px" class="q-mb-md" />
-          <q-btn color="primary" class="full-width" @click="router.push(AUTH_ROUTES.LOGIN)">
-            Continue to Login
-          </q-btn>
+          <q-btn color="primary" class="full-width" @click="goToLogin"> Continue to Login </q-btn>
         </div>
 
         <div v-else class="text-center">
@@ -28,17 +26,11 @@
           </div>
           <q-icon name="error" color="negative" size="64px" class="q-mb-md" />
 
-          <q-btn
-            color="primary"
-            class="full-width q-mb-md"
-            @click="router.push(AUTH_ROUTES.EMAIL_VERIFICATION)"
-          >
+          <q-btn color="primary" class="full-width q-mb-md" @click="goToEmailVerification">
             Request New Verification Email
           </q-btn>
 
-          <q-btn flat color="primary" class="full-width" @click="router.push(AUTH_ROUTES.LOGIN)">
-            Back to Login
-          </q-btn>
+          <q-btn flat color="primary" class="full-width" @click="goToLogin"> Back to Login </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -79,4 +71,12 @@ onMounted(async () => {
     error.value = result.error || null;
   }
 });
+
+const goToLogin = (): void => {
+  void router.push(AUTH_ROUTES.LOGIN);
+};
+
+const goToEmailVerification = (): void => {
+  void router.push(AUTH_ROUTES.EMAIL_VERIFICATION);
+};
 </script>

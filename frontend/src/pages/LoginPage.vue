@@ -42,16 +42,14 @@
         </q-form>
 
         <div class="text-center q-mt-md">
-          <q-btn flat dense color="primary" @click="router.push(AUTH_ROUTES.PASSWORD_RESET)">
+          <q-btn flat dense color="primary" @click="goToPasswordReset">
             Forgot your password?
           </q-btn>
         </div>
 
         <div class="text-center q-mt-lg">
           <span class="text-grey-6">Don't have an account? </span>
-          <q-btn flat dense color="primary" @click="router.push(AUTH_ROUTES.REGISTER)">
-            Sign up
-          </q-btn>
+          <q-btn flat dense color="primary" @click="goToRegister"> Sign up </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -109,5 +107,13 @@ const onSubmit = async (): Promise<void> => {
   } else if (result.error) {
     error.value = result.error;
   }
+};
+
+const goToPasswordReset = (): void => {
+  void router.push(AUTH_ROUTES.PASSWORD_RESET);
+};
+
+const goToRegister = (): void => {
+  void router.push(AUTH_ROUTES.REGISTER);
 };
 </script>
