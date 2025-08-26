@@ -48,4 +48,12 @@ metadata:
 spec:
   domains:
     - sensorium.dev
+---
+apiVersion: networking.gke.io/v1
+kind: ManagedCertificate
+metadata:
+  name: dream-journal-admin-ssl-cert
+  namespace: dream-journal
+spec:
+  domains:
     - admin.sensorium.dev
