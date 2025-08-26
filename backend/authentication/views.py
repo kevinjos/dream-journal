@@ -40,28 +40,10 @@ def verify_email(request: Request) -> Response:
     API endpoint to handle email verification from frontend.
     Expects a 'key' parameter in the request data.
     """
-    import re
-
     key = request.data.get("key")
     if not key:
         return Response(
             {"detail": "Verification key is required."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Sanitize the verification key - allow only alphanumeric, hyphens, and underscores
-    # This covers both regular keys and HMAC keys from allauth
-    key = str(key).strip()
-    if not re.match(r"^[a-zA-Z0-9_-]+$", key):
-        return Response(
-            {"detail": "Invalid verification key format."},
-            status=status.HTTP_400_BAD_REQUEST,
-        )
-
-    # Additional length check to prevent excessive input
-    if len(key) > 200:
-        return Response(
-            {"detail": "Invalid verification key format."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 

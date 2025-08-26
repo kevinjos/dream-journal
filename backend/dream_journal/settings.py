@@ -195,7 +195,6 @@ EMAIL_HOST_PASSWORD = os.environ.get("SENDGRID_API_KEY", "")
 # Email settings for both dev and prod
 DEFAULT_FROM_EMAIL = "Dream Journal <noreply@sensorium.dev>"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
-EMAIL_SUBJECT_PREFIX = "[Dream Journal] "
 
 # Django Allauth settings
 ACCOUNT_EMAIL_VERIFICATION = "mandatory"
@@ -206,7 +205,7 @@ ACCOUNT_CONFIRM_EMAIL_ON_GET = True
 ACCOUNT_PREVENT_ENUMERATION = True
 
 # Allauth-specific email subject prefix (separate from Django's EMAIL_SUBJECT_PREFIX)
-ACCOUNT_EMAIL_SUBJECT_PREFIX = "[Dream Journal] "
+ACCOUNT_EMAIL_SUBJECT_PREFIX = "[sensorium.dev] "
 
 # Use custom account adapter to ensure correct email subject prefix
 ACCOUNT_ADAPTER = "authentication.adapters.CustomAccountAdapter"

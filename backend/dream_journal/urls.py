@@ -18,8 +18,7 @@ Including another URLconf
 from django.conf import settings
 from django.contrib import admin
 from django.http import HttpRequest, HttpResponseRedirect, JsonResponse
-from django.urls import include, path, re_path
-from django.views.static import serve
+from django.urls import include, path
 
 from authentication.views import (
     CustomRegisterView,
@@ -79,7 +78,5 @@ urlpatterns = [
     # Minimal allauth URLs - only for URL pattern names that dj_rest_auth needs
     # We need some allauth URLs for the registration flow to work
     path("api/accounts/", include("allauth.urls")),
-    path("", include("dreams.urls")),  # dreams.urls already has api/ prefix
-    # Serve static files in production (admin CSS/JS)
-    re_path(r"^static/(?P<path>.*)$", serve, {"document_root": settings.STATIC_ROOT}),
+    path("api/", include("dreams.urls")),  # dreams.urls already has api/ prefix
 ]

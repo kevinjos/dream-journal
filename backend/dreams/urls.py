@@ -24,6 +24,6 @@ nested_urlpatterns = [
 ]
 
 urlpatterns = [
-    path("api/", include(router.urls)),
-    path("api/", include(nested_urlpatterns)),
+    path("", include(router.urls)),
+    path("", include(nested_urlpatterns)),
 ]

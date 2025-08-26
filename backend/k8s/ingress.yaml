@@ -6,7 +6,7 @@ metadata:
   annotations:
     kubernetes.io/ingress.class: "gce"
     kubernetes.io/ingress.global-static-ip-name: "dream-journal-ip"
-    networking.gke.io/managed-certificates: "dream-journal-ssl-cert"
+    networking.gke.io/managed-certificates: "dream-journal-ssl-cert,dream-journal-admin-ssl-cert"
     kubernetes.io/ingress.allow-http: "false"
   labels:
     app.kubernetes.io/name: dream-journal
