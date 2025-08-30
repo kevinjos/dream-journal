@@ -434,8 +434,28 @@ resource "google_cloud_run_domain_mapping" "backend_domain" {
   depends_on = [google_project_service.apis]
 }
 
-# Public access is now handled via run.googleapis.com/invoker-iam-disabled annotation
-# in the Cloud Run service YAML files instead of IAM bindings
+# Make Cloud Run services publicly accessible via IAM bindings
+resource "google_cloud_run_service_iam_binding" "frontend_public" {
+  location = var.region
+  project  = local.project_id
+  service  = "dream-journal-frontend"
+  role     = "roles/run.invoker"
+
+  members = [
+    "allUsers",
+  ]
+}
+
+resource "google_cloud_run_service_iam_binding" "backend_public" {
+  location = var.region
+  project  = local.project_id
+  service  = "dream-journal-backend"
+  role     = "roles/run.invoker"
+
+  members = [
+    "allUsers",
+  ]
+}
 
 # Cloud DNS managed zone (assuming it exists from Cloud Domains setup)
 data "google_dns_managed_zone" "sensorium_dev" {
@@ -474,16 +494,24 @@ resource "google_dns_record_set" "api_sensorium_dev_cname" {
 }
 
 # Cloud Build Triggers
-# Service account for Cloud Build triggers
-resource "google_service_account" "cloudbuild_trigger_sa" {
-  account_id   = "cloudbuild-trigger-sa"
+# Service account for infrastructure deployment triggers
+resource "google_service_account" "cloudbuild_infra_trigger_sa" {
+  account_id   = "cloudbuild-infra-trigger"
   project      = local.project_id
-  display_name = "Cloud Build Trigger Service Account"
-  description  = "Service account for Cloud Build triggers"
+  display_name = "Cloud Build Infrastructure Trigger SA"
+  description  = "Service account for infrastructure deployment triggers"
 }
 
-# Grant necessary permissions to trigger service account
-resource "google_project_iam_member" "cloudbuild_trigger_sa_permissions" {
+# Service account for application deployment triggers
+resource "google_service_account" "cloudbuild_app_trigger_sa" {
+  account_id   = "cloudbuild-app-trigger"
+  project      = local.project_id
+  display_name = "Cloud Build Application Trigger SA"
+  description  = "Service account for frontend and backend deployment triggers"
+}
+
+# Grant permissions to infrastructure trigger service account
+resource "google_project_iam_member" "cloudbuild_infra_trigger_permissions" {
   for_each = toset([
     "roles/cloudbuild.builds.editor",
     "roles/source.reader",
@@ -493,23 +521,37 @@ resource "google_project_iam_member" "cloudbuild_trigger_sa_permissions" {
 
   project = local.project_id
   role    = each.key
-  member  = "serviceAccount:${google_service_account.cloudbuild_trigger_sa.email}"
+  member  = "serviceAccount:${google_service_account.cloudbuild_infra_trigger_sa.email}"
 }
 
-# Grant Artifact Registry access to trigger service account
-resource "google_artifact_registry_repository_iam_member" "cloudbuild_trigger_artifact_registry" {
+# Grant minimal permissions to application trigger service account
+resource "google_project_iam_member" "cloudbuild_app_trigger_permissions" {
+  for_each = toset([
+    "roles/cloudbuild.builds.editor",  # Create and manage builds
+    "roles/source.reader",  # Read source code from repos
+    "roles/logging.logWriter",  # Write build logs
+    "roles/run.developer"  # Deploy to Cloud Run services
+  ])
+
+  project = local.project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.cloudbuild_app_trigger_sa.email}"
+}
+
+# Grant Artifact Registry access to app trigger service account (only needed for Docker builds)
+resource "google_artifact_registry_repository_iam_member" "cloudbuild_app_trigger_artifact_registry" {
   project    = local.project_id
   location   = google_artifact_registry_repository.docker_repo.location
   repository = google_artifact_registry_repository.docker_repo.name
   role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.cloudbuild_trigger_sa.email}"
+  member     = "serviceAccount:${google_service_account.cloudbuild_app_trigger_sa.email}"
 }
 
-# Grant specific bucket access for Terraform state
+# Grant specific bucket access for Terraform state (only for infrastructure SA)
 resource "google_storage_bucket_iam_member" "terraform_state_bucket_access" {
   bucket = "sensorium-terraform-state"
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.cloudbuild_trigger_sa.email}"
+  member = "serviceAccount:${google_service_account.cloudbuild_infra_trigger_sa.email}"
 }
 
 # Keep the repository resource for reference

@@ -6,7 +6,6 @@ steps:
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
-      - '--no-cache'
       - '-t'
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:${SHORT_SHA}'
       - '-t'

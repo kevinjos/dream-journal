@@ -4,7 +4,6 @@ metadata:
   name: dream-journal-backend
   annotations:
     run.googleapis.com/ingress: all
-    run.googleapis.com/invoker-iam-disabled: "true"
 spec:
   template:
     metadata:
