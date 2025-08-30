@@ -404,36 +404,35 @@ resource "google_artifact_registry_repository" "docker_repo" {
 
 
 # Cloud Run Domain Mappings
-# TODO: Uncomment after Cloud Run services are deployed
-# resource "google_cloud_run_domain_mapping" "frontend_domain" {
-#   location = var.region
-#   name     = "sensorium.dev"
-#
-#   metadata {
-#     namespace = local.project_id
-#   }
-#
-#   spec {
-#     route_name = "dream-journal-frontend"
-#   }
-#
-#   depends_on = [google_project_service.apis]
-# }
-#
-# resource "google_cloud_run_domain_mapping" "backend_domain" {
-#   location = var.region
-#   name     = "api.sensorium.dev"
-#
-#   metadata {
-#     namespace = local.project_id
-#   }
-#
-#   spec {
-#     route_name = "dream-journal-backend"
-#   }
-#
-#   depends_on = [google_project_service.apis]
-# }
+resource "google_cloud_run_domain_mapping" "frontend_domain" {
+  location = var.region
+  name     = "sensorium.dev"
+
+  metadata {
+    namespace = local.project_id
+  }
+
+  spec {
+    route_name = "dream-journal-frontend"
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_cloud_run_domain_mapping" "backend_domain" {
+  location = var.region
+  name     = "api.sensorium.dev"
+
+  metadata {
+    namespace = local.project_id
+  }
+
+  spec {
+    route_name = "dream-journal-backend"
+  }
+
+  depends_on = [google_project_service.apis]
+}
 
 # Cloud DNS managed zone (assuming it exists from Cloud Domains setup)
 data "google_dns_managed_zone" "sensorium_dev" {
@@ -442,30 +441,29 @@ data "google_dns_managed_zone" "sensorium_dev" {
 }
 
 # DNS CNAME records for Cloud Run domain mappings
-# TODO: Uncomment after Cloud Run services are deployed
-# resource "google_dns_record_set" "sensorium_dev_cname" {
-#   name         = data.google_dns_managed_zone.sensorium_dev.dns_name
-#   managed_zone = data.google_dns_managed_zone.sensorium_dev.name
-#   type         = "CNAME"
-#   ttl          = 300
-#   project      = local.project_id
-#
-#   rrdatas = ["ghs.googlehosted.com."]
-#
-#   # depends_on = [google_cloud_run_domain_mapping.frontend_domain]
-# }
-#
-# resource "google_dns_record_set" "api_sensorium_dev_cname" {
-#   name         = "api.${data.google_dns_managed_zone.sensorium_dev.dns_name}"
-#   managed_zone = data.google_dns_managed_zone.sensorium_dev.name
-#   type         = "CNAME"
-#   ttl          = 300
-#   project      = local.project_id
-#
-#   rrdatas = ["ghs.googlehosted.com."]
-#
-#   # depends_on = [google_cloud_run_domain_mapping.backend_domain]
-# }
+resource "google_dns_record_set" "sensorium_dev_cname" {
+  name         = data.google_dns_managed_zone.sensorium_dev.dns_name
+  managed_zone = data.google_dns_managed_zone.sensorium_dev.name
+  type         = "CNAME"
+  ttl          = 300
+  project      = local.project_id
+
+  rrdatas = ["ghs.googlehosted.com."]
+
+  depends_on = [google_cloud_run_domain_mapping.frontend_domain]
+}
+
+resource "google_dns_record_set" "api_sensorium_dev_cname" {
+  name         = "api.${data.google_dns_managed_zone.sensorium_dev.dns_name}"
+  managed_zone = data.google_dns_managed_zone.sensorium_dev.name
+  type         = "CNAME"
+  ttl          = 300
+  project      = local.project_id
+
+  rrdatas = ["ghs.googlehosted.com."]
+
+  depends_on = [google_cloud_run_domain_mapping.backend_domain]
+}
 
 # Cloud Build Triggers
 # Service account for Cloud Build triggers

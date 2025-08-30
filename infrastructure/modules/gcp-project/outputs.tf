@@ -113,16 +113,15 @@ output "docker_repository" {
 }
 
 # Cloud Run Domain Outputs
-# TODO: Uncomment after Cloud Run services are deployed
-# output "frontend_domain" {
-#   description = "Frontend domain mapping"
-#   value       = google_cloud_run_domain_mapping.frontend_domain.name
-# }
-#
-# output "backend_domain" {
-#   description = "Backend API domain mapping"
-#   value       = google_cloud_run_domain_mapping.backend_domain.name
-# }
+output "frontend_domain" {
+  description = "Frontend domain mapping"
+  value       = google_cloud_run_domain_mapping.frontend_domain.name
+}
+
+output "backend_domain" {
+  description = "Backend API domain mapping"
+  value       = google_cloud_run_domain_mapping.backend_domain.name
+}
 
 output "dns_name_servers" {
   description = "DNS name servers for the domain"

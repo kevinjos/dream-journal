@@ -22,7 +22,7 @@ spec:
         - name: DEBUG
           value: "False"
         - name: ALLOWED_HOSTS
-          value: "api.sensorium.dev"
+          value: "api.sensorium.dev,127.0.0.1"
         - name: ALLOWED_CIDR_NETS
           value: "10.1.0.0/16"
         - name: CORS_ALLOWED_ORIGINS
