@@ -5,15 +5,17 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .models import Dream, Quality
+from .models import Dream, Image, Quality
 from .pagination import DynamicPageSizePagination
 from .permissions import IsAuthenticatedAndOwner
 from .serializers import (
     DreamListSerializer,
     DreamSerializer,
+    ImageSerializer,
     QualitySerializer,
     QualityStatisticSerializer,
 )
+from .services.image_generation import image_service
 
 
 class QualityViewSet(viewsets.ModelViewSet):
@@ -25,6 +27,10 @@ class QualityViewSet(viewsets.ModelViewSet):
     serializer_class = QualitySerializer
     permission_classes = [IsAuthenticatedAndOwner]
 
+    def perform_create(self, serializer: QualitySerializer) -> None:
+        """Save the quality with the authenticated user."""
+        serializer.save(user=self.request.user)
+
     def get_queryset(self) -> QuerySet[Quality]:
         """
         Filter qualities to only those owned by the requesting user.
@@ -33,7 +39,7 @@ class QualityViewSet(viewsets.ModelViewSet):
         return Quality.objects.filter(user=self.request.user).order_by("name")
 
     @action(detail=True, methods=["get"])
-    def connections(self, request: Request, pk: int | str | None = None) -> Response:
+    def connections(self, request: Request) -> Response:
         """Get all connections for a specific quality."""
         quality = self.get_object()  # This already checks ownership
         connections = quality.get_connections()
@@ -115,6 +121,14 @@ class DreamViewSet(viewsets.ModelViewSet):
             return DreamListSerializer
         return DreamSerializer
 
+    def perform_create(self, serializer: DreamSerializer) -> None:
+        """Save the dream with the authenticated user."""
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer: DreamSerializer) -> None:
+        """Update the dream (user is already set on the instance)."""
+        serializer.save()
+
     @action(detail=False, methods=["get"])
     def quality_graph(self, request: Request) -> Response:
         """Get the complete quality graph for the user."""
@@ -141,3 +155,75 @@ class DreamViewSet(viewsets.ModelViewSet):
         }
 
         return Response(graph_data)
+
+    @action(detail=True, methods=["post"])
+    def generate_image(self, request: Request) -> Response:
+        """Generate an AI image for this dream."""
+        dream = self.get_object()  # This already checks ownership via permissions
+
+        # Get optional custom prompt from request
+        custom_prompt = request.data.get("prompt")
+
+        try:
+            # Generate image using the service
+            dream_image = image_service.generate_image_for_dream(dream, custom_prompt)
+
+            return Response(
+                {
+                    "id": dream_image.pk,
+                    "status": dream_image.generation_status,
+                    "prompt": dream_image.generation_prompt,
+                    "created": dream_image.created,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to start image generation: {e!s}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=["get"])
+    def images(self, request: Request) -> Response:
+        """Get all images for this dream. Returns List[Image]."""
+        dream = self.get_object()  # This already checks ownership
+
+        # Serialize images
+        serializer = ImageSerializer(dream.images.all(), many=True)
+        data = serializer.data
+
+        # Add signed URLs for completed images
+        for i, image in enumerate(dream.images.all()):
+            if image.generation_status == Image.GenerationStatus.COMPLETED:
+                try:
+                    data[i]["image_url"] = image_service.get_signed_url(image)
+                except Exception:
+                    pass  # Skip URL if generation fails
+
+        return Response(data)
+
+    @action(detail=True, methods=["get"], url_path=r"images/(?P<image_id>\d+)")
+    def image(self, request: Request, image_id: str) -> Response:
+        """Get a specific image for this dream. Returns Image."""
+        dream = self.get_object()  # This already checks ownership
+
+        try:
+            dream_image = dream.images.get(pk=image_id)
+        except Image.DoesNotExist:
+            return Response(
+                {"error": "Image not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Serialize the image
+        serializer = ImageSerializer(dream_image)
+        data = serializer.data
+
+        # Add signed URL if image is completed
+        if dream_image.generation_status == Image.GenerationStatus.COMPLETED:
+            try:
+                data["image_url"] = image_service.get_signed_url(dream_image)
+            except Exception:
+                pass  # Skip URL if generation fails
+
+        return Response(data)

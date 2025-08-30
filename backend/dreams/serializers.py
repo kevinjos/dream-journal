@@ -2,7 +2,7 @@ from typing import Any
 
 from rest_framework import serializers
 
-from .models import Dream, Quality
+from .models import Dream, Image, Quality
 
 
 class QualitySerializer(serializers.ModelSerializer):
@@ -12,11 +12,6 @@ class QualitySerializer(serializers.ModelSerializer):
         model = Quality
         fields = ["id", "name", "frequency", "created"]
         read_only_fields = ["id", "frequency", "created"]
-
-    def create(self, validated_data: dict[str, Any]) -> Quality:
-        """Create a quality for the authenticated user."""
-        validated_data["user"] = self.context["request"].user
-        return super().create(validated_data)
 
 
 class QualityConnectionSerializer(serializers.Serializer):
@@ -41,10 +36,20 @@ class QualityStatisticSerializer(serializers.Serializer):
     )
 
 
+class ImageSerializer(serializers.ModelSerializer):
+    """Serializer for Image model."""
+
+    class Meta:
+        model = Image
+        fields = ["id", "generation_status", "generation_prompt", "gcs_path", "created"]
+        read_only_fields = ["id", "generation_prompt", "gcs_path", "created"]
+
+
 class DreamSerializer(serializers.ModelSerializer):
     """Serializer for Dream model."""
 
     qualities = QualitySerializer(many=True, read_only=True)
+    images = ImageSerializer(many=True, read_only=True)
     quality_ids = serializers.ListField(
         child=serializers.IntegerField(), write_only=True, required=False
     )
@@ -58,18 +63,18 @@ class DreamSerializer(serializers.ModelSerializer):
             "id",
             "description",
             "qualities",
+            "images",
             "quality_ids",
             "quality_names",
             "created",
             "updated",
         ]
-        read_only_fields = ["id", "created", "updated"]
+        read_only_fields = ["id", "images", "created", "updated"]
 
     def create(self, validated_data: dict[str, Any]) -> Dream:
-        """Create a dream for the authenticated user."""
+        """Create a dream with quality handling."""
         quality_ids = validated_data.pop("quality_ids", [])
         quality_names = validated_data.pop("quality_names", [])
-        validated_data["user"] = self.context["request"].user
 
         dream = Dream.objects.create(**validated_data)
 
@@ -79,15 +84,15 @@ class DreamSerializer(serializers.ModelSerializer):
             for name in quality_names:
                 name = name.strip().lower()
                 if name:  # Skip empty names
-                    quality, created = Quality.objects.get_or_create(
-                        name=name, user=self.context["request"].user
+                    quality, _created = Quality.objects.get_or_create(
+                        name=name, user=dream.user
                     )
                     user_qualities.append(quality)
 
         # Handle quality IDs - existing qualities
         if quality_ids:
             existing_qualities = Quality.objects.filter(
-                id__in=quality_ids, user=self.context["request"].user
+                id__in=quality_ids, user=dream.user
             )
             user_qualities.extend(existing_qualities)
 
@@ -115,15 +120,15 @@ class DreamSerializer(serializers.ModelSerializer):
             for name in quality_names:
                 name = name.strip().lower()
                 if name:  # Skip empty names
-                    quality, created = Quality.objects.get_or_create(
-                        name=name, user=self.context["request"].user
+                    quality, _created = Quality.objects.get_or_create(
+                        name=name, user=instance.user
                     )
                     user_qualities.append(quality)
 
         # Handle quality IDs - existing qualities
         elif quality_ids is not None:
             existing_qualities = Quality.objects.filter(
-                id__in=quality_ids, user=self.context["request"].user
+                id__in=quality_ids, user=instance.user
             )
             user_qualities.extend(existing_qualities)
 
@@ -138,8 +143,9 @@ class DreamListSerializer(serializers.ModelSerializer):
     """Lightweight serializer for dream lists."""
 
     qualities = QualitySerializer(many=True, read_only=True)
+    images = ImageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Dream
-        fields = ["id", "description", "qualities", "created"]
+        fields = ["id", "description", "qualities", "images", "created"]
         read_only_fields = ["id", "created"]

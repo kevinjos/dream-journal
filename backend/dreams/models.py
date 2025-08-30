@@ -254,3 +254,52 @@ class Dream(models.Model):
         """
         graph = cls.build_quality_graph(user)
         return graph.get_statistics()
+
+
+class Image(models.Model):
+    """Model for storing AI-generated images associated with dreams."""
+
+    # Image generation status choices
+    class GenerationStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        GENERATING = "generating", "Generating"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    # Foreign key to Dream model
+    dream = models.ForeignKey(
+        Dream,
+        on_delete=models.CASCADE,
+        related_name="images",
+        help_text="The dream this image belongs to",
+    )
+
+    # GCS storage information
+    gcs_path = models.CharField(
+        max_length=512, help_text="Path to the image file in Google Cloud Storage"
+    )
+
+    # Generation metadata
+    generation_prompt = models.TextField(
+        help_text="The prompt used to generate this image"
+    )
+
+    generation_status = models.CharField(
+        max_length=20,
+        choices=GenerationStatus.choices,
+        default=GenerationStatus.PENDING,
+        help_text="Current status of image generation",
+    )
+
+    # Timestamp
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created"]  # Most recent images first
+        indexes = [
+            models.Index(fields=["dream", "-created"]),  # For dream's images listing
+            models.Index(fields=["generation_status"]),  # For status queries
+        ]
+
+    def __str__(self) -> str:
+        return f"Image for Dream {self.dream.pk} ({self.generation_status})"
