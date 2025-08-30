@@ -9,9 +9,15 @@ spec:
         run.googleapis.com/vpc-access-connector: dream-journal-connector
         run.googleapis.com/vpc-access-egress: private-ranges-only
     spec:
-      serviceAccountName: cloud-run-app@${PROJECT_ID}.iam.gserviceaccount.com
+      taskCount: 1
+      parallelism: 1
+      taskTimeoutSeconds: 600
+      backoffLimit: 3
       template:
+        metadata: {}
         spec:
+          serviceAccountName: cloud-run-app@${PROJECT_ID}.iam.gserviceaccount.com
+          restartPolicy: Never
           containers:
           - image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dream-journal/backend:${SHORT_SHA}
             command: ["/usr/bin/python3.11", "manage.py", "migrate", "--noinput"]
@@ -34,8 +40,3 @@ spec:
               limits:
                 memory: "512Mi"
                 cpu: "1000m"
-          taskCount: 1
-          parallelism: 1
-          taskTimeoutSeconds: 600
-          backoffLimit: 3
-          restartPolicy: Never
