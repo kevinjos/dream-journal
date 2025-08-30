@@ -409,6 +409,22 @@ resource "google_secret_manager_secret" "gemini_api_key" {
   depends_on = [google_project_service.apis]
 }
 
+# Secret for Alert Email
+resource "google_secret_manager_secret" "alert_email" {
+  secret_id = "alert-email"
+  project   = local.project_id
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
 # Note: The actual Gemini API key value should be added manually via console or CLI
 # for security reasons. Run this command after terraform apply:
 # echo -n "YOUR_GEMINI_API_KEY" | gcloud secrets versions add gemini-api-key --data-file=-
@@ -723,6 +739,14 @@ resource "google_logging_metric" "new_user_registrations" {
   depends_on = [google_project_service.apis]
 }
 
+# Data source to read alert email from secret (if it exists)
+data "google_secret_manager_secret_version" "alert_email" {
+  secret  = google_secret_manager_secret.alert_email.secret_id
+  project = local.project_id
+
+  # This will return null if no version exists
+}
+
 # Notification channel for alerts (email)
 resource "google_monitoring_notification_channel" "email_alerts" {
   display_name = "Dream Journal Email Alerts"
@@ -730,7 +754,7 @@ resource "google_monitoring_notification_channel" "email_alerts" {
   type         = "email"
 
   labels = {
-    email_address = var.alert_email
+    email_address = data.google_secret_manager_secret_version.alert_email.secret_data
   }
 
   depends_on = [google_project_service.apis]
