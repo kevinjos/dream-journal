@@ -434,28 +434,8 @@ resource "google_cloud_run_domain_mapping" "backend_domain" {
   depends_on = [google_project_service.apis]
 }
 
-# Make Cloud Run services publicly accessible
-resource "google_cloud_run_service_iam_binding" "frontend_public" {
-  location = var.region
-  project  = local.project_id
-  service  = "dream-journal-frontend"
-  role     = "roles/run.invoker"
-
-  members = [
-    "allUsers",
-  ]
-}
-
-resource "google_cloud_run_service_iam_binding" "backend_public" {
-  location = var.region
-  project  = local.project_id
-  service  = "dream-journal-backend"
-  role     = "roles/run.invoker"
-
-  members = [
-    "allUsers",
-  ]
-}
+# Public access is now handled via run.googleapis.com/invoker-iam-disabled annotation
+# in the Cloud Run service YAML files instead of IAM bindings
 
 # Cloud DNS managed zone (assuming it exists from Cloud Domains setup)
 data "google_dns_managed_zone" "sensorium_dev" {
