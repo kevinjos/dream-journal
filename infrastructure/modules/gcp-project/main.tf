@@ -530,7 +530,8 @@ resource "google_project_iam_member" "cloudbuild_app_trigger_permissions" {
     "roles/cloudbuild.builds.editor",  # Create and manage builds
     "roles/source.reader",  # Read source code from repos
     "roles/logging.logWriter",  # Write build logs
-    "roles/run.developer"  # Deploy to Cloud Run services
+    "roles/run.developer",  # Deploy to Cloud Run services
+    "roles/iam.serviceAccountUser"  # Act as the cloud-run-app service account
   ])
 
   project = local.project_id
