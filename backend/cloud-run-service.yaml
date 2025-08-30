@@ -42,6 +42,13 @@ spec:
             secretKeyRef:
               name: sendgrid-api-key
               key: latest
+        - name: GCS_BUCKET_NAME
+          value: "${PROJECT_ID}-dream-images"
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: gemini-api-key
+              key: latest
         resources:
           limits:
             memory: "1Gi"

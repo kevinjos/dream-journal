@@ -41,7 +41,8 @@ resource "google_project_service" "apis" {
     "iam.googleapis.com",
     "billingbudgets.googleapis.com",
     "cloudbilling.googleapis.com",
-    "vpcaccess.googleapis.com"
+    "vpcaccess.googleapis.com",
+    "storage.googleapis.com"
   ])
 
   project = local.project_id
@@ -96,7 +97,8 @@ resource "google_secret_manager_secret_iam_binding" "cloud_run_secret_access" {
   for_each = toset([
     google_secret_manager_secret.django_secret_key.secret_id,
     google_secret_manager_secret.db_url.secret_id,
-    google_secret_manager_secret.sendgrid_api_key.secret_id
+    google_secret_manager_secret.sendgrid_api_key.secret_id,
+    google_secret_manager_secret.gemini_api_key.secret_id
   ])
 
   project   = local.project_id
@@ -390,6 +392,26 @@ resource "google_secret_manager_secret" "sendgrid_api_key" {
 # Note: The actual SendGrid API key value should be added manually via console or CLI
 # for security reasons. Run this command after terraform apply:
 # echo -n "YOUR_SENDGRID_API_KEY" | gcloud secrets versions add sendgrid-api-key --data-file=-
+
+# Gemini API Key Secret
+resource "google_secret_manager_secret" "gemini_api_key" {
+  secret_id = "gemini-api-key"
+  project   = local.project_id
+
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Note: The actual Gemini API key value should be added manually via console or CLI
+# for security reasons. Run this command after terraform apply:
+# echo -n "YOUR_GEMINI_API_KEY" | gcloud secrets versions add gemini-api-key --data-file=-
 
 # Artifact Registry for container images
 resource "google_artifact_registry_repository" "docker_repo" {
@@ -749,4 +771,60 @@ resource "google_monitoring_alert_policy" "new_user_alert" {
     google_project_service.apis,
     google_logging_metric.new_user_registrations
   ]
+}
+
+# Google Cloud Storage bucket for dream images
+resource "google_storage_bucket" "dream_images" {
+  name     = "${local.project_id}-dream-images"
+  project  = local.project_id
+  location = var.region
+
+  # Enable uniform bucket-level access
+  uniform_bucket_level_access = true
+
+  # Public access prevention
+  public_access_prevention = "enforced"
+
+  # Versioning for data protection
+  versioning {
+    enabled = true
+  }
+
+  # Lifecycle management for cost optimization
+  lifecycle_rule {
+    condition {
+      age = 365  # Move to nearline after 1 year
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "NEARLINE"
+    }
+  }
+
+  lifecycle_rule {
+    condition {
+      age = 1095  # Move to coldline after 3 years
+    }
+    action {
+      type          = "SetStorageClass"
+      storage_class = "COLDLINE"
+    }
+  }
+
+  # CORS configuration for web access
+  cors {
+    origin          = ["https://sensorium.dev"]
+    method          = ["GET", "HEAD"]
+    response_header = ["*"]
+    max_age_seconds = 3600
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Grant Cloud Run service account access to the dream images bucket
+resource "google_storage_bucket_iam_member" "dream_images_access" {
+  bucket = google_storage_bucket.dream_images.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.app_service_account.email}"
 }

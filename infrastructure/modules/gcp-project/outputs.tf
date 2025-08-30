@@ -94,6 +94,11 @@ output "django_admin_password_secret_name" {
   value       = google_secret_manager_secret.django_admin_password.secret_id
 }
 
+output "gemini_api_key_secret_name" {
+  description = "Name of the Secret Manager secret containing Gemini API key"
+  value       = google_secret_manager_secret.gemini_api_key.secret_id
+}
+
 output "django_admin_password" {
   description = "Django admin password (sensitive - use 'terraform output -raw django_admin_password' to view)"
   value       = random_password.django_admin_password.result
@@ -126,4 +131,15 @@ output "backend_domain" {
 output "dns_name_servers" {
   description = "DNS name servers for the domain"
   value       = data.google_dns_managed_zone.sensorium_dev.name_servers
+}
+
+# Storage Outputs
+output "dream_images_bucket_name" {
+  description = "Name of the Google Cloud Storage bucket for dream images"
+  value       = google_storage_bucket.dream_images.name
+}
+
+output "dream_images_bucket_url" {
+  description = "URL of the Google Cloud Storage bucket for dream images"
+  value       = google_storage_bucket.dream_images.url
 }

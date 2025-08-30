@@ -1,23 +1,26 @@
+import base64
 import os
 import uuid
 from datetime import datetime, timedelta
 
 from django.utils import timezone
-from google.cloud import aiplatform, storage
+from google import genai
+from google.cloud import storage
 
 from dreams.models import Dream, Image
 
 
 class ImageGenerationService:
-    """Service for generating and managing dream images using Vertex AI and GCS."""
+    """Service for generating and managing dream images using Gemini 2.5 Flash and GCS."""
 
     def __init__(self) -> None:
-        self.project_id = os.environ.get("GOOGLE_CLOUD_PROJECT", "dream-journal-dev")
-        self.location = os.environ.get("VERTEX_AI_LOCATION", "us-central1")
         self.bucket_name = os.environ.get("GCS_BUCKET_NAME", "dream-journal-images")
 
-        # Initialize Vertex AI
-        aiplatform.init(project=self.project_id, location=self.location)
+        # Initialize Gemini client with API key from environment
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY environment variable is required")
+        self.gemini_client = genai.Client(api_key=api_key)
 
         # Initialize GCS client
         self.storage_client = storage.Client()
@@ -47,7 +50,7 @@ class ImageGenerationService:
         image_id = str(uuid.uuid4())
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         gcs_path = (
-            f"users/{dream.user.id}/dreams/{dream.id}/images/{image_id}_{timestamp}.png"
+            f"users/{dream.user.pk}/dreams/{dream.pk}/images/{image_id}_{timestamp}.png"
         )
 
         # Create Image record
@@ -65,7 +68,7 @@ class ImageGenerationService:
 
     def _generate_image_async(self, dream_image: Image) -> None:
         """
-        Generate image using Vertex AI Imagen API.
+        Generate image using Gemini 2.5 Flash Image API.
         In production, this should be run as a background task.
         """
         try:
@@ -73,33 +76,25 @@ class ImageGenerationService:
             dream_image.generation_status = Image.GenerationStatus.GENERATING
             dream_image.save(update_fields=["generation_status"])
 
-            # Configure Imagen parameters
-            endpoint_name = f"projects/{self.project_id}/locations/{self.location}/publishers/google/models/imagen-3.0-generate-001"
-
-            # Prepare the request
-            instances = [
-                {
-                    "prompt": dream_image.generation_prompt,
-                }
-            ]
-
-            parameters = {
-                "sampleCount": 1,
-                "aspectRatio": "1:1",  # Square images
-                "safetyFilterLevel": "block_some",
-                "personGeneration": "dont_allow",  # Avoid generating people for privacy
-            }
-
-            # Call Vertex AI Imagen
-            endpoint = aiplatform.Endpoint(endpoint_name)
-            response = endpoint.predict(instances=instances, parameters=parameters)
+            # Call Gemini 2.5 Flash Image
+            response = self.gemini_client.models.generate_content(
+                model="gemini-2.5-flash-image-preview",
+                contents=[dream_image.generation_prompt],
+            )
 
             # Extract generated image data
-            if response.predictions and len(response.predictions) > 0:
-                prediction = response.predictions[0]
+            if response.candidates and len(response.candidates) > 0:
+                candidate = response.candidates[0]
 
-                # The response contains base64-encoded image data
-                image_data = prediction.get("bytesBase64Encoded")
+                # Look for image data in the response parts
+                image_data = None
+                if candidate.content and candidate.content.parts:
+                    for part in candidate.content.parts:
+                        if hasattr(part, "inline_data") and part.inline_data:
+                            # Image data is base64 encoded string
+                            image_data = part.inline_data.data
+                            break
+
                 if image_data:
                     # Upload to GCS
                     self._upload_to_gcs(dream_image, image_data)
@@ -110,7 +105,7 @@ class ImageGenerationService:
                 else:
                     raise ValueError("No image data in response")
             else:
-                raise ValueError("No predictions in response")
+                raise ValueError("No candidates in response")
 
         except Exception as e:
             # Mark as failed
@@ -118,14 +113,17 @@ class ImageGenerationService:
             dream_image.save(update_fields=["generation_status"])
 
             # Log the error (in production, use proper logging)
-            print(f"Image generation failed for Image {dream_image.id}: {e!s}")
+            print(f"Image generation failed for Image {dream_image.pk}: {e!s}")
 
-    def _upload_to_gcs(self, dream_image: Image, image_data: str) -> None:
+    def _upload_to_gcs(self, dream_image: Image, image_data: str | bytes) -> None:
         """Upload base64-encoded image data to Google Cloud Storage."""
-        import base64
-
-        # Decode base64 image data
-        image_bytes = base64.b64decode(image_data)
+        # Handle both string and bytes input
+        if isinstance(image_data, str):
+            # Decode base64 image data
+            image_bytes = base64.b64decode(image_data)
+        else:
+            # Already bytes
+            image_bytes = image_data
 
         # Create blob and upload
         blob = self.bucket.blob(dream_image.gcs_path)
