@@ -49,6 +49,7 @@
           :current-page="pagination.currentPage"
           :total-pages="pagination.totalPages"
           :total-items="pagination.count"
+          :page-size="5"
           :loading="loading"
           @page-change="onPageChange"
         />
@@ -136,8 +137,9 @@ const fetchData = async (page: number = 1): Promise<void> => {
   try {
     loading.value = true;
 
-    // Build API URL with pagination
+    // Build API URL with pagination (limit to 5 dreams per page for dashboard)
     const params = new URLSearchParams();
+    params.append('page_size', '5');
     if (page > 1) {
       params.append('page', page.toString());
     }
@@ -153,7 +155,7 @@ const fetchData = async (page: number = 1): Promise<void> => {
       pagination.value = {
         count: dreamsData.count || 0,
         currentPage: page,
-        totalPages: Math.ceil((dreamsData.count || 0) / 20), // PAGE_SIZE is 20
+        totalPages: Math.ceil((dreamsData.count || 0) / 5), // PAGE_SIZE is 5 for dashboard
       };
     } else {
       // Non-paginated response (fallback)

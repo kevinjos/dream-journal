@@ -6,6 +6,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .models import Dream, Quality
+from .pagination import DynamicPageSizePagination
 from .permissions import IsAuthenticatedAndOwner
 from .serializers import (
     DreamListSerializer,
@@ -72,6 +73,7 @@ class DreamViewSet(viewsets.ModelViewSet):
     """
 
     permission_classes = [IsAuthenticatedAndOwner]
+    pagination_class = DynamicPageSizePagination
 
     def get_queryset(self) -> QuerySet[Dream]:
         """

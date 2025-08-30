@@ -15,7 +15,7 @@ export interface Quality {
 
 export interface DreamCreate {
   description: string;
-  quality_names?: string[];
+  quality_names: string[];
 }
 
 export interface Meta {
