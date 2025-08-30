@@ -247,6 +247,10 @@ if not DEBUG:
 
     # HSTS (HTTP Strict Transport Security)
     SECURE_HSTS_SECONDS = 31536000  # 1 year
+
+    # Scope admin cookies to avoid conflict with app login
+    SESSION_COOKIE_DOMAIN = "api.sensorium.dev"
+    CSRF_COOKIE_DOMAIN = "api.sensorium.dev"
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
 
