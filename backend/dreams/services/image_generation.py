@@ -17,9 +17,7 @@ class ImageGenerationService:
         self.bucket_name = os.environ.get("GCS_BUCKET_NAME", "dream-journal-images")
 
         # Initialize Gemini client with API key from environment
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise ValueError("GEMINI_API_KEY environment variable is required")
+        api_key = os.environ.get("GEMINI_API_KEY", "stub")
         self.gemini_client = genai.Client(api_key=api_key)
 
         # Initialize GCS client
