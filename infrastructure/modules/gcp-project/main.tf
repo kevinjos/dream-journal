@@ -434,21 +434,49 @@ resource "google_cloud_run_domain_mapping" "backend_domain" {
   depends_on = [google_project_service.apis]
 }
 
+# Make Cloud Run services publicly accessible
+resource "google_cloud_run_service_iam_binding" "frontend_public" {
+  location = var.region
+  project  = local.project_id
+  service  = "dream-journal-frontend"
+  role     = "roles/run.invoker"
+
+  members = [
+    "allUsers",
+  ]
+}
+
+resource "google_cloud_run_service_iam_binding" "backend_public" {
+  location = var.region
+  project  = local.project_id
+  service  = "dream-journal-backend"
+  role     = "roles/run.invoker"
+
+  members = [
+    "allUsers",
+  ]
+}
+
 # Cloud DNS managed zone (assuming it exists from Cloud Domains setup)
 data "google_dns_managed_zone" "sensorium_dev" {
   name    = "sensorium-dev"
   project = local.project_id
 }
 
-# DNS CNAME records for Cloud Run domain mappings
-resource "google_dns_record_set" "sensorium_dev_cname" {
+# DNS A records for Cloud Run domain mappings (root domain)
+resource "google_dns_record_set" "sensorium_dev_a" {
   name         = data.google_dns_managed_zone.sensorium_dev.dns_name
   managed_zone = data.google_dns_managed_zone.sensorium_dev.name
-  type         = "CNAME"
+  type         = "A"
   ttl          = 300
   project      = local.project_id
 
-  rrdatas = ["ghs.googlehosted.com."]
+  rrdatas = [
+    "216.239.32.21",
+    "216.239.34.21",
+    "216.239.36.21",
+    "216.239.38.21"
+  ]
 
   depends_on = [google_cloud_run_domain_mapping.frontend_domain]
 }
