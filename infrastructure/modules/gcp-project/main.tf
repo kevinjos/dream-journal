@@ -78,6 +78,8 @@ resource "google_vpc_access_connector" "cloud_run_connector" {
   region        = var.region
   network       = google_compute_network.main.name
   ip_cidr_range = "10.8.0.0/28"
+  max_instances = 10
+  min_instances = 2
 
   depends_on = [google_project_service.apis]
 }
@@ -150,6 +152,15 @@ resource "google_project_iam_member" "cloudbuild_service_account_user" {
 resource "google_project_iam_member" "cloudbuild_secret_manager" {
   project = local.project_id
   role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [google_project_service.apis]
+}
+
+# Grant Cloud Build IAM permissions to manage secret and service account policies
+resource "google_project_iam_member" "cloudbuild_iam_security_admin" {
+  project = local.project_id
+  role    = "roles/iam.securityAdmin"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
   depends_on = [google_project_service.apis]
@@ -471,7 +482,8 @@ resource "google_project_iam_member" "cloudbuild_trigger_sa_permissions" {
     "roles/cloudbuild.builds.editor",
     "roles/source.reader",
     "roles/logging.logWriter",
-    "roles/editor"  # Broad permissions needed for infrastructure management
+    "roles/editor",  # Broad permissions needed for infrastructure management
+    "roles/run.admin"  # Cloud Run management permissions
   ])
 
   project = local.project_id

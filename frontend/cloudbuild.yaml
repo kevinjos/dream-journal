@@ -39,7 +39,7 @@ steps:
 
         # Process and deploy service configuration
         echo "Processing frontend/cloud-run-service.yaml"
-        envsubst < "frontend/cloud-run-service.yaml" | gcloud run services replace --region=${_REGION}
+        envsubst < "frontend/cloud-run-service.yaml" | gcloud run services replace --region=${_REGION} --
 
         # Ensure service allows unauthenticated access (handled by load balancer)
         gcloud run services add-iam-policy-binding dream-journal-frontend \

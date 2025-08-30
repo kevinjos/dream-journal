@@ -39,7 +39,7 @@ steps:
 
         # Process and execute migration job
         echo "Processing backend/migration-job.yaml"
-        envsubst < "backend/migration-job.yaml" | gcloud run jobs replace --region=${_REGION}
+        envsubst < "backend/migration-job.yaml" | gcloud run jobs replace --region=${_REGION} --
 
         # Execute the migration job
         echo "Running database migrations"
@@ -63,7 +63,7 @@ steps:
 
         # Process and deploy service configuration
         echo "Processing backend/cloud-run-service.yaml"
-        envsubst < "backend/cloud-run-service.yaml" | gcloud run services replace --region=${_REGION}
+        envsubst < "backend/cloud-run-service.yaml" | gcloud run services replace --region=${_REGION} --
 
         # Ensure service allows unauthenticated access (handled by load balancer)
         gcloud run services add-iam-policy-binding dream-journal-backend \
