@@ -39,13 +39,10 @@ steps:
 
         # Process and deploy service configuration
         echo "Processing frontend/cloud-run-service.yaml"
-        envsubst < "frontend/cloud-run-service.yaml" | gcloud run services replace --region=${_REGION} --
+        envsubst < "frontend/cloud-run-service.yaml" > /tmp/processed-service.yaml
+        gcloud run services replace /tmp/processed-service.yaml --region=${_REGION}
 
-        # Ensure service allows unauthenticated access (handled by load balancer)
-        gcloud run services add-iam-policy-binding dream-journal-frontend \
-          --region=${_REGION} \
-          --member="allUsers" \
-          --role="roles/run.invoker"
+        # Note: Public access will be configured via domain mapping in Terraform
     id: 'deploy-service'
     waitFor: ['push-frontend']
 

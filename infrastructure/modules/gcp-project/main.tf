@@ -482,8 +482,7 @@ resource "google_project_iam_member" "cloudbuild_trigger_sa_permissions" {
     "roles/cloudbuild.builds.editor",
     "roles/source.reader",
     "roles/logging.logWriter",
-    "roles/editor",  # Broad permissions needed for infrastructure management
-    "roles/run.admin"  # Cloud Run management permissions
+    "roles/editor"  # Broad permissions needed for infrastructure management
   ])
 
   project = local.project_id
