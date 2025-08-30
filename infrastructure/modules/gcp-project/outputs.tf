@@ -45,22 +45,10 @@ output "zone" {
   value       = var.zone
 }
 
-# GKE Outputs
-output "gke_cluster_name" {
-  description = "Name of the GKE cluster"
-  value       = google_container_cluster.dream_journal.name
-}
-
-output "gke_cluster_endpoint" {
-  description = "Endpoint for the GKE cluster"
-  value       = google_container_cluster.dream_journal.endpoint
-  sensitive   = true
-}
-
-output "gke_cluster_ca_certificate" {
-  description = "Base64 encoded CA certificate for the GKE cluster"
-  value       = google_container_cluster.dream_journal.master_auth.0.cluster_ca_certificate
-  sensitive   = true
+# Cloud Run Outputs
+output "vpc_connector_id" {
+  description = "ID of the VPC Access connector for Cloud Run"
+  value       = google_vpc_access_connector.cloud_run_connector.id
 }
 
 # Database Outputs
@@ -114,8 +102,8 @@ output "django_admin_password" {
 
 # Service Account Outputs
 output "app_service_account_email" {
-  description = "Email of the application service account for Workload Identity"
-  value       = google_service_account.app_workload.email
+  description = "Email of the Cloud Run application service account"
+  value       = google_service_account.app_service_account.email
 }
 
 # Artifact Registry Outputs
@@ -124,11 +112,17 @@ output "docker_repository" {
   value       = "${google_artifact_registry_repository.docker_repo.location}-docker.pkg.dev/${local.project_id}/${google_artifact_registry_repository.docker_repo.repository_id}"
 }
 
-# Networking Outputs
-output "static_ip_address" {
-  description = "Static IP address for the load balancer"
-  value       = google_compute_global_address.dream_journal_ip.address
-}
+# Cloud Run Domain Outputs
+# TODO: Uncomment after Cloud Run services are deployed
+# output "frontend_domain" {
+#   description = "Frontend domain mapping"
+#   value       = google_cloud_run_domain_mapping.frontend_domain.name
+# }
+#
+# output "backend_domain" {
+#   description = "Backend API domain mapping"
+#   value       = google_cloud_run_domain_mapping.backend_domain.name
+# }
 
 output "dns_name_servers" {
   description = "DNS name servers for the domain"

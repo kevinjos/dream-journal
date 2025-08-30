@@ -19,9 +19,15 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 // good idea to move this instance creation inside of the
 // "export default () => {}" function below (which runs individually
 // for each client)
-// Use relative URL for production, localhost for development
-const baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:8081/api';
-const api = axios.create({ baseURL });
+// Use direct API domain for production, localhost for development
+const baseURL =
+  process.env.NODE_ENV === 'production'
+    ? 'https://api.sensorium.dev/api'
+    : 'http://localhost:8081/api';
+const api = axios.create({
+  baseURL,
+  withCredentials: true, // Important for CORS cookies if using sessions
+});
 
 // Track requests being retried to prevent infinite loops
 const isRetryRequest = (config: RetryableRequestConfig): boolean => {

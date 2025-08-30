@@ -1,5 +1,5 @@
 # Cloud Build configuration for Dream Journal Backend
-# Uses envsubst to replace variables in Kubernetes manifests
+# Deploys to Cloud Run using service configuration YAML
 
 steps:
   # Build the Docker image
@@ -23,19 +23,7 @@ steps:
     id: 'push-backend'
     waitFor: ['build-backend']
 
-  # Get GKE cluster credentials
-  - name: 'gcr.io/cloud-builders/gcloud'
-    args:
-      - 'container'
-      - 'clusters'
-      - 'get-credentials'
-      - '${_CLUSTER_NAME}'
-      - '--location=${_REGION}'
-      - '--project=${_PROJECT_ID}'
-    id: 'get-credentials'
-    waitFor: ['push-backend']
-
-  # Deploy Kubernetes manifests with variable substitution
+  # Run database migrations
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -46,31 +34,50 @@ steps:
         export REGION=${_REGION}
         export SHORT_SHA=${SHORT_SHA}
 
-        # Install envsubst if not available
+        # Install envsubst for variable substitution
         apt-get update && apt-get install -y gettext-base
 
-        # Apply namespace first if it exists
-        if [[ -f "backend/k8s/namespace.yaml" ]]; then
-          echo "Processing backend/k8s/namespace.yaml"
-          envsubst < "backend/k8s/namespace.yaml" | kubectl apply -f -
-        fi
+        # Process and execute migration job
+        echo "Processing backend/migration-job.yaml"
+        envsubst < "backend/migration-job.yaml" | gcloud run jobs replace --region=${_REGION}
 
-        # Process and apply other manifest files
-        for file in backend/k8s/*.yaml; do
-          if [[ -f "$$file" && "$$file" != "backend/k8s/namespace.yaml" ]]; then
-            echo "Processing $$file"
-            envsubst < "$$file" | kubectl apply -f -
-          fi
-        done
-    id: 'deploy-manifests'
-    waitFor: ['get-credentials']
+        # Execute the migration job
+        echo "Running database migrations"
+        gcloud run jobs execute dream-journal-migrations --region=${_REGION} --wait
+    id: 'run-migrations'
+    waitFor: ['push-backend']
+
+  # Deploy Cloud Run service
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Set environment variables for envsubst
+        export PROJECT_ID=${_PROJECT_ID}
+        export REGION=${_REGION}
+        export SHORT_SHA=${SHORT_SHA}
+
+        # Install envsubst for variable substitution
+        apt-get update && apt-get install -y gettext-base
+
+        # Process and deploy service configuration
+        echo "Processing backend/cloud-run-service.yaml"
+        envsubst < "backend/cloud-run-service.yaml" | gcloud run services replace --region=${_REGION}
+
+        # Ensure service allows unauthenticated access (handled by load balancer)
+        gcloud run services add-iam-policy-binding dream-journal-backend \
+          --region=${_REGION} \
+          --member="allUsers" \
+          --role="roles/run.invoker"
+    id: 'deploy-service'
+    waitFor: ['run-migrations']
 
 # Substitutions (configure sensitive values in Cloud Build trigger)
 substitutions:
   # _PROJECT_ID: Set this in Cloud Build trigger substitutions
   _REGION: 'us-central1'
   _REPOSITORY: 'dream-journal'
-  _CLUSTER_NAME: 'dream-journal-autopilot'
 
 # Build options
 options:

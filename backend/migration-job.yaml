@@ -1,0 +1,42 @@
+apiVersion: run.googleapis.com/v1
+kind: Job
+metadata:
+  name: dream-journal-migrations
+spec:
+  spec:
+    template:
+      metadata:
+        annotations:
+          run.googleapis.com/vpc-access-connector: dream-journal-connector
+          run.googleapis.com/vpc-access-egress: private-ranges-only
+      spec:
+        serviceAccountName: cloud-run-app@${PROJECT_ID}.iam.gserviceaccount.com
+        template:
+          spec:
+            containers:
+            - image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dream-journal/backend:${SHORT_SHA}
+              command: ["/usr/bin/python3.11", "manage.py", "migrate", "--noinput"]
+              env:
+              - name: PYTHONPATH
+                value: "/app:/home/venv/lib/python3.11/site-packages"
+              - name: DEBUG
+                value: "False"
+              - name: SECRET_KEY
+                valueFrom:
+                  secretKeyRef:
+                    name: django-secret-key
+                    key: latest
+              - name: DATABASE_URL
+                valueFrom:
+                  secretKeyRef:
+                    name: database-url
+                    key: latest
+              resources:
+                limits:
+                  memory: "512Mi"
+                  cpu: "1000m"
+            taskCount: 1
+            parallelism: 1
+            taskTimeoutSeconds: 600
+            backoffLimit: 3
+            restartPolicy: Never

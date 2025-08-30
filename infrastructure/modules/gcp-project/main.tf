@@ -27,7 +27,6 @@ resource "google_project_service" "apis" {
   for_each = toset([
     "cloudresourcemanager.googleapis.com",
     "compute.googleapis.com",
-    "container.googleapis.com",
     "sql-component.googleapis.com",
     "sqladmin.googleapis.com",
     "secretmanager.googleapis.com",
@@ -41,7 +40,8 @@ resource "google_project_service" "apis" {
     "servicenetworking.googleapis.com",
     "iam.googleapis.com",
     "billingbudgets.googleapis.com",
-    "cloudbilling.googleapis.com"
+    "cloudbilling.googleapis.com",
+    "vpcaccess.googleapis.com"
   ])
 
   project = local.project_id
@@ -67,227 +67,47 @@ resource "google_compute_subnetwork" "app_subnet" {
   region        = var.region
   network       = google_compute_network.main.id
   ip_cidr_range = "10.0.0.0/24"
-
-  secondary_ip_range {
-    range_name    = "pods"
-    ip_cidr_range = "10.1.0.0/16"
-  }
-
-  secondary_ip_range {
-    range_name    = "services"
-    ip_cidr_range = "10.2.0.0/16"
-  }
 }
 
-# Cloud NAT for outbound internet access
-resource "google_compute_router" "main" {
-  name    = "dream-journal-router"
-  project = local.project_id
-  region  = var.region
-  network = google_compute_network.main.id
+
+
+# VPC Connector for Cloud Run to access Cloud SQL
+resource "google_vpc_access_connector" "cloud_run_connector" {
+  name          = "dream-journal-connector"
+  project       = local.project_id
+  region        = var.region
+  network       = google_compute_network.main.name
+  ip_cidr_range = "10.8.0.0/28"
+
+  depends_on = [google_project_service.apis]
 }
 
-resource "google_compute_router_nat" "main" {
-  name   = "dream-journal-nat"
-  project = local.project_id
-  router = google_compute_router.main.name
-  region = var.region
-
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
-
-  log_config {
-    enable = true
-    filter = "ERRORS_ONLY"
-  }
-}
-
-# Firewall rules
-resource "google_compute_firewall" "allow_internal" {
-  name    = "dream-journal-allow-internal"
-  project = local.project_id
-  network = google_compute_network.main.name
-
-  allow {
-    protocol = "tcp"
-    ports    = ["0-65535"]
-  }
-
-  allow {
-    protocol = "udp"
-    ports    = ["0-65535"]
-  }
-
-  allow {
-    protocol = "icmp"
-  }
-
-  source_ranges = ["10.0.0.0/8"]
-  target_tags   = ["dream-journal"]
-}
-
-resource "google_compute_firewall" "allow_health_checks" {
-  name    = "dream-journal-allow-health-checks"
-  project = local.project_id
-  network = google_compute_network.main.name
-
-  allow {
-    protocol = "tcp"
-    ports    = ["8080", "8000", "9000"]
-  }
-
-  source_ranges = [
-    "130.211.0.0/22",
-    "35.191.0.0/16"
-  ]
-  target_tags = ["dream-journal"]
-}
-
-# GKE Autopilot Cluster
-resource "google_container_cluster" "dream_journal" {
-  name     = "dream-journal-autopilot"
-  project  = local.project_id
-  location = var.region
-
-  # Enable Autopilot mode
-  enable_autopilot = true
-
-  network    = google_compute_network.main.name
-  subnetwork = google_compute_subnetwork.app_subnet.name
-
-  # IP allocation for pods and services
-  ip_allocation_policy {
-    cluster_secondary_range_name  = "pods"
-    services_secondary_range_name = "services"
-  }
-
-  # Enable private nodes (no public IPs)
-  private_cluster_config {
-    enable_private_nodes    = true
-    enable_private_endpoint = false
-    master_ipv4_cidr_block  = "10.10.0.0/28"
-  }
-
-  # Master authorized networks (for kubectl access)
-  master_authorized_networks_config {
-    cidr_blocks {
-      cidr_block   = "0.0.0.0/0"
-      display_name = "All networks"
-    }
-  }
-
-  # Autopilot clusters automatically enable Workload Identity
-  workload_identity_config {
-    workload_pool = "${local.project_id}.svc.id.goog"
-  }
-
-  # Enable Secret Manager CSI driver
-  secret_manager_config {
-    enabled = true
-  }
-
-  # Enable addons
-  addons_config {
-    gcs_fuse_csi_driver_config {
-      enabled = true
-    }
-  }
-
-  # Configure maintenance window for reliability
-  maintenance_policy {
-    daily_maintenance_window {
-      start_time = "03:00"
-    }
-  }
-
-  depends_on = [
-    google_project_service.apis,
-    google_compute_network.main,
-    google_compute_subnetwork.app_subnet
-  ]
-}
-
-# Note: Autopilot clusters don't need node service accounts as Google manages them
-
-# Service account for application workloads
-resource "google_service_account" "app_workload" {
-  account_id   = "dream-journal-app"
+# Service account for Cloud Run services
+resource "google_service_account" "app_service_account" {
+  account_id   = "cloud-run-app"
   project      = local.project_id
-  display_name = "Dream Journal Application Service Account"
+  display_name = "Cloud Run Application Service Account"
 }
 
-# IAM binding for Secret Manager access
-resource "google_secret_manager_secret_iam_binding" "db_username_access" {
+# Grant Secret Manager access to Cloud Run service account
+resource "google_secret_manager_secret_iam_binding" "cloud_run_secret_access" {
+  for_each = toset([
+    google_secret_manager_secret.django_secret_key.secret_id,
+    google_secret_manager_secret.db_url.secret_id,
+    google_secret_manager_secret.sendgrid_api_key.secret_id
+  ])
+
   project   = local.project_id
-  secret_id = google_secret_manager_secret.db_username.secret_id
+  secret_id = each.key
   role      = "roles/secretmanager.secretAccessor"
 
   members = [
-    "serviceAccount:${google_service_account.app_workload.email}",
+    "serviceAccount:${google_service_account.app_service_account.email}",
   ]
 }
 
-resource "google_secret_manager_secret_iam_binding" "db_password_access" {
-  project   = local.project_id
-  secret_id = google_secret_manager_secret.db_password.secret_id
-  role      = "roles/secretmanager.secretAccessor"
 
-  members = [
-    "serviceAccount:${google_service_account.app_workload.email}",
-  ]
-}
 
-resource "google_secret_manager_secret_iam_binding" "db_url_access" {
-  project   = local.project_id
-  secret_id = google_secret_manager_secret.db_url.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-
-  members = [
-    "serviceAccount:${google_service_account.app_workload.email}",
-  ]
-}
-
-resource "google_secret_manager_secret_iam_binding" "django_secret_key_access" {
-  project   = local.project_id
-  secret_id = google_secret_manager_secret.django_secret_key.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-
-  members = [
-    "serviceAccount:${google_service_account.app_workload.email}",
-  ]
-}
-
-resource "google_secret_manager_secret_iam_binding" "django_admin_password_access" {
-  project   = local.project_id
-  secret_id = google_secret_manager_secret.django_admin_password.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-
-  members = [
-    "serviceAccount:${google_service_account.app_workload.email}",
-  ]
-}
-
-resource "google_secret_manager_secret_iam_binding" "sendgrid_api_key_access" {
-  project   = local.project_id
-  secret_id = google_secret_manager_secret.sendgrid_api_key.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-
-  members = [
-    "serviceAccount:${google_service_account.app_workload.email}",
-  ]
-}
-
-# Workload Identity binding
-resource "google_service_account_iam_binding" "workload_identity_binding" {
-  service_account_id = google_service_account.app_workload.name
-  role               = "roles/iam.workloadIdentityUser"
-
-  members = [
-    "serviceAccount:${local.project_id}.svc.id.goog[dream-journal/dream-journal-app]",
-  ]
-
-  depends_on = [google_container_cluster.dream_journal]
-}
 
 # Cloud Build service account permissions
 data "google_project" "project" {
@@ -308,10 +128,19 @@ resource "google_artifact_registry_repository_iam_member" "cloudbuild_artifact_r
   depends_on = [google_project_service.apis]
 }
 
-# Grant Cloud Build access to GKE
-resource "google_project_iam_member" "cloudbuild_gke_admin" {
+# Grant Cloud Build access to Cloud Run
+resource "google_project_iam_member" "cloudbuild_run_admin" {
   project = local.project_id
-  role    = "roles/container.admin"
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+
+  depends_on = [google_project_service.apis]
+}
+
+# Grant Cloud Build access to service account impersonation
+resource "google_project_iam_member" "cloudbuild_service_account_user" {
+  project = local.project_id
+  role    = "roles/iam.serviceAccountUser"
   member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
 
   depends_on = [google_project_service.apis]
@@ -562,14 +391,38 @@ resource "google_artifact_registry_repository" "docker_repo" {
   depends_on = [google_project_service.apis]
 }
 
-# Global static IP for the load balancer
-resource "google_compute_global_address" "dream_journal_ip" {
-  name         = "dream-journal-ip"
-  project      = local.project_id
-  address_type = "EXTERNAL"
 
-  depends_on = [google_project_service.apis]
-}
+# Cloud Run Domain Mappings
+# TODO: Uncomment after Cloud Run services are deployed
+# resource "google_cloud_run_domain_mapping" "frontend_domain" {
+#   location = var.region
+#   name     = "sensorium.dev"
+#
+#   metadata {
+#     namespace = local.project_id
+#   }
+#
+#   spec {
+#     route_name = "dream-journal-frontend"
+#   }
+#
+#   depends_on = [google_project_service.apis]
+# }
+#
+# resource "google_cloud_run_domain_mapping" "backend_domain" {
+#   location = var.region
+#   name     = "api.sensorium.dev"
+#
+#   metadata {
+#     namespace = local.project_id
+#   }
+#
+#   spec {
+#     route_name = "dream-journal-backend"
+#   }
+#
+#   depends_on = [google_project_service.apis]
+# }
 
 # Cloud DNS managed zone (assuming it exists from Cloud Domains setup)
 data "google_dns_managed_zone" "sensorium_dev" {
@@ -577,16 +430,31 @@ data "google_dns_managed_zone" "sensorium_dev" {
   project = local.project_id
 }
 
-# DNS A record pointing to the load balancer IP
-resource "google_dns_record_set" "sensorium_dev_a" {
-  name         = data.google_dns_managed_zone.sensorium_dev.dns_name
-  managed_zone = data.google_dns_managed_zone.sensorium_dev.name
-  type         = "A"
-  ttl          = 300
-  project      = local.project_id
-
-  rrdatas = [google_compute_global_address.dream_journal_ip.address]
-}
+# DNS CNAME records for Cloud Run domain mappings
+# TODO: Uncomment after Cloud Run services are deployed
+# resource "google_dns_record_set" "sensorium_dev_cname" {
+#   name         = data.google_dns_managed_zone.sensorium_dev.dns_name
+#   managed_zone = data.google_dns_managed_zone.sensorium_dev.name
+#   type         = "CNAME"
+#   ttl          = 300
+#   project      = local.project_id
+#
+#   rrdatas = ["ghs.googlehosted.com."]
+#
+#   # depends_on = [google_cloud_run_domain_mapping.frontend_domain]
+# }
+#
+# resource "google_dns_record_set" "api_sensorium_dev_cname" {
+#   name         = "api.${data.google_dns_managed_zone.sensorium_dev.dns_name}"
+#   managed_zone = data.google_dns_managed_zone.sensorium_dev.name
+#   type         = "CNAME"
+#   ttl          = 300
+#   project      = local.project_id
+#
+#   rrdatas = ["ghs.googlehosted.com."]
+#
+#   # depends_on = [google_cloud_run_domain_mapping.backend_domain]
+# }
 
 # Cloud Build Triggers
 # Service account for Cloud Build triggers
@@ -670,9 +538,8 @@ resource "google_logging_metric" "new_user_registrations" {
   project = local.project_id
 
   filter = <<-EOT
-    resource.type="k8s_container"
-    resource.labels.namespace_name="dream-journal"
-    resource.labels.container_name="backend"
+    resource.type="cloud_run_revision"
+    resource.labels.service_name="dream-journal-backend"
     jsonPayload.name="django.security"
     jsonPayload.message=~"User .* registered successfully"
   EOT
@@ -720,7 +587,7 @@ resource "google_monitoring_alert_policy" "new_user_alert" {
     display_name = "New user registration detected"
 
     condition_threshold {
-      filter          = "resource.type=\"k8s_container\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.new_user_registrations.name}\""
+      filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.new_user_registrations.name}\""
       duration        = "60s"
       comparison      = "COMPARISON_GT"
       threshold_value = 0

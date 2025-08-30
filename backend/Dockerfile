@@ -45,5 +45,6 @@ ENV PYTHONPATH=/app:/home/venv/lib/python3.11/site-packages
 EXPOSE 8000
 
 # Run gunicorn using wrapper script with system Python
+# PORT environment variable will be handled by run.py
 ENTRYPOINT ["/usr/bin/python3.11", "run.py"]
-CMD ["--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "120", "dream_journal.wsgi:application"]
+CMD ["--workers", "3", "--timeout", "120", "dream_journal.wsgi:application"]
