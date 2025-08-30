@@ -563,9 +563,87 @@ resource "google_cloudbuildv2_repository" "dream_journal_repo" {
   remote_uri        = "https://github.com/kevinjos/dream-journal.git"
 }
 
-# Note: Cloud Build triggers are managed manually via Cloud Console due to Terraform provider
-# limitations with 2nd generation repository connections. The triggers use the service account
-# and permissions defined above.
+# Cloud Build Triggers
+# Infrastructure deployment trigger
+resource "google_cloudbuild_trigger" "infrastructure_deploy" {
+  project     = local.project_id
+  location    = "us-central1"
+  name        = "infrastructure-deploy"
+  description = "Deploy infrastructure changes"
+
+  repository_event_config {
+    repository = google_cloudbuildv2_repository.dream_journal_repo.id
+    push {
+      branch = "^main$"
+    }
+  }
+
+  included_files = ["infrastructure/**"]
+
+  filename = "infrastructure/cloudbuild.yaml"
+
+  service_account = google_service_account.cloudbuild_infra_trigger_sa.id
+
+  substitutions = {
+    _PROJECT_ID  = local.project_id
+    _REGION      = var.region
+    _REPOSITORY  = "dream-journal"
+  }
+}
+
+# Backend deployment trigger
+resource "google_cloudbuild_trigger" "backend_deploy" {
+  project     = local.project_id
+  location    = "us-central1"
+  name        = "backend-deploy"
+  description = "Deploy backend application"
+
+  repository_event_config {
+    repository = google_cloudbuildv2_repository.dream_journal_repo.id
+    push {
+      branch = "^main$"
+    }
+  }
+
+  included_files = ["backend/**"]
+
+  filename = "backend/cloudbuild.yaml"
+
+  service_account = google_service_account.cloudbuild_app_trigger_sa.id
+
+  substitutions = {
+    _PROJECT_ID  = local.project_id
+    _REGION      = var.region
+    _REPOSITORY  = "dream-journal"
+  }
+}
+
+# Frontend deployment trigger
+resource "google_cloudbuild_trigger" "frontend_deploy" {
+  project     = local.project_id
+  location    = "us-central1"
+  name        = "frontend-deploy"
+  description = "Deploy frontend application"
+
+  repository_event_config {
+    repository = google_cloudbuildv2_repository.dream_journal_repo.id
+    push {
+      branch = "^main$"
+    }
+  }
+
+  included_files = ["frontend/**"]
+
+  filename = "frontend/cloudbuild.yaml"
+
+  service_account = google_service_account.cloudbuild_app_trigger_sa.id
+
+  substitutions = {
+    _PROJECT_ID  = local.project_id
+    _REGION      = var.region
+    _REPOSITORY  = "dream-journal"
+  }
+}
 
 # Database user
 resource "google_sql_user" "dream_journal_user" {
