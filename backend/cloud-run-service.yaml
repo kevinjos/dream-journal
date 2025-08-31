@@ -44,6 +44,8 @@ spec:
               key: latest
         - name: GCS_BUCKET_NAME
           value: "${PROJECT_ID}-dream-images"
+        - name: GOOGLE_CLOUD_PROJECT
+          value: "${PROJECT_ID}"
         - name: GEMINI_API_KEY
           valueFrom:
             secretKeyRef:
