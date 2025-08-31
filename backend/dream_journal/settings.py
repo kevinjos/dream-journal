@@ -265,6 +265,8 @@ if not DEBUG:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = "Strict"
     # CSRF cookie settings removed - we use JWT authentication, not CSRF tokens
+else:
+    SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
 
 # Rate limiting
 ACCOUNT_RATE_LIMITS = {

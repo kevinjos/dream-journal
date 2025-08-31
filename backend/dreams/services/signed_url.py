@@ -3,7 +3,6 @@
 import logging
 import os
 from datetime import timedelta
-from pathlib import Path
 
 from django.utils import timezone
 from google.cloud import storage
@@ -18,22 +17,14 @@ class SignedUrlService:
 
     def __init__(self) -> None:
         self.bucket_name = os.environ.get("GCS_BUCKET_NAME", "dream-journal-images")
+        service_account_path = os.environ.get("SERVICE_ACCOUNT_PATH")
 
-        # Use service account key for signed URL generation
-        service_account_path = (
-            Path.home() / ".gcloud-keys" / "dream-journal-cloud-run-app-key.json"
-        )
-        if service_account_path.exists():
+        if service_account_path:
             self.storage_client = storage.Client.from_service_account_json(
                 str(service_account_path)
             )
-            logger.info(f"Using service account key from {service_account_path}")
         else:
-            # Fall back to default credentials (for development)
             self.storage_client = storage.Client()
-            logger.warning(
-                f"Service account key not found at {service_account_path}, using default credentials"
-            )
 
         self.bucket = self.storage_client.bucket(self.bucket_name)
 
