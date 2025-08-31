@@ -101,6 +101,13 @@ resource "google_project_iam_member" "app_storage" {
   member  = "serviceAccount:${google_service_account.app_service_account.email}"
 }
 
+# Grant Cloud Run service account permission to sign URLs
+resource "google_project_iam_member" "app_token_creator" {
+  project = local.project_id
+  role    = "roles/iam.serviceAccountTokenCreator"
+  member  = "serviceAccount:${google_service_account.app_service_account.email}"
+}
+
 # Grant Cloud Build trigger service account permission to manage Pub/Sub IAM
 resource "google_project_iam_member" "cloudbuild_pubsub_admin" {
   project = local.project_id

@@ -268,6 +268,12 @@ if not DEBUG:
 else:
     SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
 
+# GCS Configuration for signed URLs
+GCS_BUCKET_NAME = os.environ.get(
+    "GCS_BUCKET_NAME",
+    f"{os.environ.get('GOOGLE_CLOUD_PROJECT', 'default')}-dream-images",
+)
+
 # Rate limiting
 ACCOUNT_RATE_LIMITS = {
     "login_failed": "5/5m",  # 5 failed attempts per 5 minutes

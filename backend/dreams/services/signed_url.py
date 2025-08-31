@@ -1,9 +1,9 @@
 """Service for generating signed URLs for Google Cloud Storage."""
 
 import logging
-import os
 from datetime import timedelta
 
+from django.conf import settings
 from django.utils import timezone
 from google.cloud import storage
 
@@ -16,14 +16,16 @@ class SignedUrlService:
     """Service for generating signed URLs for GCS access."""
 
     def __init__(self) -> None:
-        self.bucket_name = os.environ.get("GCS_BUCKET_NAME", "dream-journal-images")
-        service_account_path = os.environ.get("SERVICE_ACCOUNT_PATH")
+        self.bucket_name = settings.GCS_BUCKET_NAME
+        self.service_account_path = getattr(settings, "SERVICE_ACCOUNT_PATH", None)
 
-        if service_account_path:
+        if self.service_account_path:
+            # Use service account JSON key (has private key for signing)
             self.storage_client = storage.Client.from_service_account_json(
-                str(service_account_path)
+                str(self.service_account_path)
             )
         else:
+            # Use default credentials with IAM-based signing
             self.storage_client = storage.Client()
 
         self.bucket = self.storage_client.bucket(self.bucket_name)
@@ -43,9 +45,17 @@ class SignedUrlService:
             Signed URL string for the specified operation
         """
         blob = self.bucket.blob(dream_image.gcs_path)
-        signed_url = blob.generate_signed_url(
-            expiration=timezone.now() + timedelta(hours=expiration_hours), method=method
-        )
+        expiration = timezone.now() + timedelta(hours=expiration_hours)
+
+        if self.service_account_path:
+            # Use key-based signing for local development with service account JSON
+            signed_url = blob.generate_signed_url(expiration=expiration, method=method)
+        else:
+            # Use IAM-based signing for Cloud Run (requires iam.serviceAccountTokenCreator role)
+            signed_url = blob.generate_signed_url(
+                expiration=expiration, method=method, version="v4"
+            )
+
         return signed_url
 
 
