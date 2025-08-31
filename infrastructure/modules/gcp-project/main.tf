@@ -101,6 +101,13 @@ resource "google_project_iam_member" "app_storage" {
   member  = "serviceAccount:${google_service_account.app_service_account.email}"
 }
 
+# Grant Pub/Sub access to Cloud Run service account for Celery broker
+resource "google_project_iam_member" "app_pubsub" {
+  project = local.project_id
+  role    = "roles/pubsub.editor"
+  member  = "serviceAccount:${google_service_account.app_service_account.email}"
+}
+
 # Grant Secret Manager access to Cloud Run service account
 resource "google_secret_manager_secret_iam_binding" "cloud_run_secret_access" {
   for_each = toset([
