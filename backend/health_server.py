@@ -5,6 +5,7 @@ Provides a /health endpoint that uses celery inspect ping to check worker status
 
 import json
 import logging
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from typing import Any
@@ -29,18 +30,33 @@ class HealthHandler(BaseHTTPRequestHandler):
     def _handle_health_check(self) -> None:
         """Check Celery worker health using inspect ping."""
         try:
-            # Use celery inspect to ping workers
-            # Note: timeout is set on the inspect object, not the ping method
-            inspect = self.celery_app.control.inspect(timeout=5.0)
+            # Get the worker name from shared environment variable
+            worker_name = os.environ.get("CELERY_WORKER_NAME")
+
+            # Use celery inspect to ping this specific worker
+            inspect = self.celery_app.control.inspect(
+                timeout=5.0, destination=[worker_name]
+            )
             pong = inspect.ping()
 
             if pong:
-                # Worker responded to ping
-                self._send_json_response(200, {"status": "healthy", "worker": pong})
-            else:
-                # No workers responded
+                # This specific worker responded to ping
                 self._send_json_response(
-                    503, {"status": "unhealthy", "error": "worker not responding"}
+                    200,
+                    {
+                        "status": "healthy",
+                        "worker": worker_name,
+                        "response": pong[worker_name],
+                    },
+                )
+            else:
+                # This worker didn't respond
+                self._send_json_response(
+                    503,
+                    {
+                        "status": "unhealthy",
+                        "error": f"worker {worker_name} not responding",
+                    },
                 )
 
         except Exception as exc:
