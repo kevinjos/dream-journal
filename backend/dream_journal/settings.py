@@ -62,6 +62,7 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "allow_cidr",
+    "django_celery_results",
     # Local apps
     "authentication",
     "dreams",

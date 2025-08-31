@@ -42,7 +42,8 @@ resource "google_project_service" "apis" {
     "billingbudgets.googleapis.com",
     "cloudbilling.googleapis.com",
     "vpcaccess.googleapis.com",
-    "storage.googleapis.com"
+    "storage.googleapis.com",
+    "generativelanguage.googleapis.com"
   ])
 
   project = local.project_id
@@ -90,6 +91,20 @@ resource "google_service_account" "app_service_account" {
   account_id   = "cloud-run-app"
   project      = local.project_id
   display_name = "Cloud Run Application Service Account"
+}
+
+# Grant Generative Language API access to Cloud Run service account
+resource "google_project_iam_member" "app_generative_language" {
+  project = local.project_id
+  role    = "roles/generativelanguage.user"
+  member  = "serviceAccount:${google_service_account.app_service_account.email}"
+}
+
+# Grant Cloud Storage access to Cloud Run service account for image storage
+resource "google_project_iam_member" "app_storage" {
+  project = local.project_id
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${google_service_account.app_service_account.email}"
 }
 
 # Grant Secret Manager access to Cloud Run service account
@@ -409,21 +424,6 @@ resource "google_secret_manager_secret" "gemini_api_key" {
   depends_on = [google_project_service.apis]
 }
 
-# Secret for Alert Email
-resource "google_secret_manager_secret" "alert_email" {
-  secret_id = "alert-email"
-  project   = local.project_id
-
-  replication {
-    user_managed {
-      replicas {
-        location = var.region
-      }
-    }
-  }
-
-  depends_on = [google_project_service.apis]
-}
 
 # Note: The actual Gemini API key value should be added manually via console or CLI
 # for security reasons. Run this command after terraform apply:
@@ -624,9 +624,14 @@ resource "google_cloudbuild_trigger" "infrastructure_deploy" {
   service_account = google_service_account.cloudbuild_infra_trigger_sa.id
 
   substitutions = {
-    _PROJECT_ID  = local.project_id
-    _REGION      = var.region
-    _REPOSITORY  = "dream-journal"
+    _PROJECT_ID   = local.project_id
+    _REGION       = var.region
+    _REPOSITORY   = "dream-journal"
+    _ALERT_EMAIL  = var.alert_email
+  }
+
+  lifecycle {
+    ignore_changes = [substitutions["_ALERT_EMAIL"]]
   }
 }
 
@@ -739,14 +744,6 @@ resource "google_logging_metric" "new_user_registrations" {
   depends_on = [google_project_service.apis]
 }
 
-# Data source to read alert email from secret (if it exists)
-data "google_secret_manager_secret_version" "alert_email" {
-  secret  = google_secret_manager_secret.alert_email.secret_id
-  project = local.project_id
-
-  # This will return null if no version exists
-}
-
 # Notification channel for alerts (email)
 resource "google_monitoring_notification_channel" "email_alerts" {
   display_name = "Dream Journal Email Alerts"
@@ -754,7 +751,7 @@ resource "google_monitoring_notification_channel" "email_alerts" {
   type         = "email"
 
   labels = {
-    email_address = data.google_secret_manager_secret_version.alert_email.secret_data
+    email_address = var.alert_email
   }
 
   depends_on = [google_project_service.apis]

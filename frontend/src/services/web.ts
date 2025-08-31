@@ -49,6 +49,15 @@ export const dreamsApi = {
   update: (id: string | number, dream: Partial<Dream>) => api.put(`/dreams/${id}/`, dream),
 
   delete: (id: string | number) => api.delete(`/dreams/${id}/`),
+
+  // Image generation APIs
+  generateImage: (id: string | number, prompt?: string) =>
+    api.post(`/dreams/${id}/generate_image/`, prompt ? { prompt } : {}),
+
+  getImages: (id: string | number) => api.get(`/dreams/${id}/images/`),
+
+  getImage: (dreamId: string | number, imageId: string | number) =>
+    api.get(`/dreams/${dreamId}/images/${imageId}/`),
 };
 
 // Qualities API calls

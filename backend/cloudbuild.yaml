@@ -1,8 +1,8 @@
-# Cloud Build configuration for Dream Journal Backend
-# Deploys to Cloud Run using service configuration YAML
+# Cloud Build configuration for Dream Journal Backend and Celery Worker
+# Deploys both services to Cloud Run using service configuration YAML
 
 steps:
-  # Build the Docker image
+  # Build the backend Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -13,7 +13,20 @@ steps:
       - './backend'
     id: 'build-backend'
 
-  # Push the Docker image to Artifact Registry
+  # Build the worker Docker image (parallel with backend)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.worker'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:${SHORT_SHA}'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:latest'
+      - './backend'
+    id: 'build-worker'
+
+  # Push the backend Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
@@ -21,6 +34,15 @@ steps:
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend'
     id: 'push-backend'
     waitFor: ['build-backend']
+
+  # Push the worker Docker image (parallel with backend push)
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker'
+    id: 'push-worker'
+    waitFor: ['build-worker']
 
   # Run database migrations
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -70,6 +92,27 @@ steps:
     id: 'deploy-service'
     waitFor: ['run-migrations']
 
+  # Deploy Cloud Run worker service (parallel with main service)
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        # Set environment variables for envsubst
+        export PROJECT_ID=${_PROJECT_ID}
+        export REGION=${_REGION}
+        export SHORT_SHA=${SHORT_SHA}
+
+        # Install envsubst for variable substitution
+        apt-get update && apt-get install -y gettext-base
+
+        # Process and deploy worker service configuration
+        echo "Processing backend/cloud-run-worker-service.yaml"
+        envsubst < "backend/cloud-run-worker-service.yaml" > /tmp/processed-worker-service.yaml
+        gcloud run services replace /tmp/processed-worker-service.yaml --region=${_REGION}
+    id: 'deploy-worker'
+    waitFor: ['push-worker']
+
 # Substitutions (configure sensitive values in Cloud Build trigger)
 substitutions:
   # _PROJECT_ID: Set this in Cloud Build trigger substitutions
@@ -89,3 +132,5 @@ timeout: '1200s'
 images:
   - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:${SHORT_SHA}'
   - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:latest'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:latest'

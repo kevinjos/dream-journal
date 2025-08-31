@@ -15,7 +15,7 @@ from .serializers import (
     QualitySerializer,
     QualityStatisticSerializer,
 )
-from .services.image_generation import image_service
+from .services.signed_url import signed_url_service
 
 
 class QualityViewSet(viewsets.ModelViewSet):
@@ -157,16 +157,43 @@ class DreamViewSet(viewsets.ModelViewSet):
         return Response(graph_data)
 
     @action(detail=True, methods=["post"])
-    def generate_image(self, request: Request) -> Response:
-        """Generate an AI image for this dream."""
+    def generate_image(self, request: Request, pk: str | None = None) -> Response:
+        """Generate an AI image for this dream using Celery task queue."""
         dream = self.get_object()  # This already checks ownership via permissions
 
         # Get optional custom prompt from request
         custom_prompt = request.data.get("prompt")
 
         try:
-            # Generate image using the service
-            dream_image = image_service.generate_image_for_dream(dream, custom_prompt)
+            # Create the prompt
+            if custom_prompt:
+                prompt = custom_prompt
+            else:
+                # Use dream description as base prompt, with some artistic enhancement
+                prompt = f"A dreamlike, surreal artistic interpretation of: {dream.description}"
+
+            # Generate unique GCS path
+            import uuid
+            from datetime import datetime
+
+            image_id = str(uuid.uuid4())
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            gcs_path = f"users/{dream.user.pk}/dreams/{dream.pk}/images/{image_id}_{timestamp}.png"
+
+            # Create Image record with pending status
+            dream_image = Image.objects.create(
+                dream=dream,
+                gcs_path=gcs_path,
+                generation_prompt=prompt,
+                generation_status=Image.GenerationStatus.PENDING,
+            )
+
+            # Queue the Celery task using string-based task name to avoid import issues
+            from dream_journal.celery import app as celery_app
+
+            celery_app.send_task(
+                "dreams.tasks.generate_dream_image", args=[dream_image.pk]
+            )
 
             return Response(
                 {
@@ -185,7 +212,7 @@ class DreamViewSet(viewsets.ModelViewSet):
             )
 
     @action(detail=True, methods=["get"])
-    def images(self, request: Request) -> Response:
+    def images(self, request: Request, pk: str | None = None) -> Response:
         """Get all images for this dream. Returns List[Image]."""
         dream = self.get_object()  # This already checks ownership
 
@@ -197,14 +224,16 @@ class DreamViewSet(viewsets.ModelViewSet):
         for i, image in enumerate(dream.images.all()):
             if image.generation_status == Image.GenerationStatus.COMPLETED:
                 try:
-                    data[i]["image_url"] = image_service.get_signed_url(image)
+                    data[i]["image_url"] = signed_url_service.get_signed_url(image)
                 except Exception:
                     pass  # Skip URL if generation fails
 
         return Response(data)
 
     @action(detail=True, methods=["get"], url_path=r"images/(?P<image_id>\d+)")
-    def image(self, request: Request, image_id: str) -> Response:
+    def image(
+        self, request: Request, pk: str | None = None, image_id: str | None = None
+    ) -> Response:
         """Get a specific image for this dream. Returns Image."""
         dream = self.get_object()  # This already checks ownership
 
@@ -222,7 +251,7 @@ class DreamViewSet(viewsets.ModelViewSet):
         # Add signed URL if image is completed
         if dream_image.generation_status == Image.GenerationStatus.COMPLETED:
             try:
-                data["image_url"] = image_service.get_signed_url(dream_image)
+                data["image_url"] = signed_url_service.get_signed_url(dream_image)
             except Exception:
                 pass  # Skip URL if generation fails
 

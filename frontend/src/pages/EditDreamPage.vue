@@ -19,22 +19,54 @@
         />
 
         <!-- Generate Image Button -->
-        <div>
-          <q-btn
-            color="secondary"
-            outline
-            label="Generate Image"
-            icon="auto_awesome"
-            :loading="generatingImage"
-            :disable="generatingImage || !dreamForm.description.trim()"
-            class="full-width"
-            @click="generateImage"
-          >
-            <template v-slot:loading>
-              <q-spinner-hourglass class="on-left" />
-              Generating...
-            </template>
-          </q-btn>
+        <transition
+          enter-active-class="fade-enter-active"
+          leave-active-class="fade-leave-active"
+          enter-from-class="fade-enter-from"
+          leave-to-class="fade-leave-to"
+        >
+          <div v-if="imagesLoaded && completedImages.length === 0">
+            <q-btn
+              color="secondary"
+              outline
+              label="Generate Image"
+              icon="auto_awesome"
+              :loading="generatingImage"
+              :disable="generatingImage || !dreamForm.description.trim()"
+              class="full-width"
+              @click="generateImage"
+            >
+              <template v-slot:loading>
+                <q-spinner-hourglass class="on-left" />
+                Generating...
+              </template>
+            </q-btn>
+          </div>
+        </transition>
+
+        <!-- Generated Images Display -->
+        <div v-if="completedImages.length > 0" class="q-mt-md">
+          <div v-for="image in completedImages" :key="image.id" class="q-mb-md">
+            <!-- Show completed image -->
+            <div v-if="image.image_url" class="image-container">
+              <q-img
+                :src="image.image_url"
+                :alt="image.generation_prompt"
+                class="generated-image"
+                ratio="1"
+                fit="cover"
+              >
+                <template v-slot:error>
+                  <div class="absolute-full flex flex-center bg-grey-3 text-grey-7">
+                    <div class="text-center">
+                      <q-icon name="broken_image" size="24px" />
+                      <div class="text-caption">Failed to load</div>
+                    </div>
+                  </div>
+                </template>
+              </q-img>
+            </div>
+          </div>
         </div>
       </q-form>
     </div>
@@ -49,21 +81,31 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, onUnmounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { dreamsApi } from 'src/services/web';
 import { useDreamForm } from 'src/composables/useDreamForm';
 import DreamFormFields from 'components/DreamFormFields.vue';
 import StickySubmitButton from 'components/StickySubmitButton.vue';
+import type { Image } from 'src/types/models';
+import { ImageGenerationStatus } from 'src/types/models';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
 const loading = ref(false);
 const generatingImage = ref(false);
+const generatedImages = ref<Image[]>([]);
+const imagesLoaded = ref(false); // Track if we've loaded images from API
+let pollingInterval: NodeJS.Timeout | null = null;
 
 const dreamId = computed(() => route.params.id as string);
+
+// Computed property to show only completed images
+const completedImages = computed(() =>
+  generatedImages.value.filter((img) => img.generation_status === ImageGenerationStatus.COMPLETED),
+);
 
 // Use the dream form composable
 const { qualityInput, dreamForm, addQuality, removeQuality, populateForm } = useDreamForm();
@@ -72,6 +114,7 @@ const fetchDream = async (): Promise<void> => {
   if (!dreamId.value) return;
 
   try {
+    // Fetch dream data
     const response = await dreamsApi.get(dreamId.value);
     const dream = response.data;
 
@@ -79,6 +122,9 @@ const fetchDream = async (): Promise<void> => {
       description: dream.description,
       quality_names: dream.qualities?.map((q) => q.name) || [],
     });
+
+    // Fetch existing images for this dream
+    await fetchImages();
   } catch (error) {
     console.error('Error fetching dream:', error);
     $q.notify({
@@ -90,31 +136,132 @@ const fetchDream = async (): Promise<void> => {
   }
 };
 
+const fetchImages = async (): Promise<void> => {
+  if (!dreamId.value) return;
+
+  try {
+    const response = await dreamsApi.getImages(dreamId.value);
+    generatedImages.value = response.data as Image[];
+
+    // Check if any images are still generating and start polling
+    const generatingImages = generatedImages.value.filter(
+      (img) =>
+        img.generation_status === ImageGenerationStatus.GENERATING ||
+        img.generation_status === ImageGenerationStatus.PENDING,
+    );
+
+    if (generatingImages.length > 0) {
+      // Start polling for the most recent generating image
+      const latestGeneratingImage = generatingImages[generatingImages.length - 1];
+      if (latestGeneratingImage) {
+        pollImageStatus(latestGeneratingImage.id);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching images:', error);
+    // Don't show notification for image loading errors
+  } finally {
+    // Always set images as loaded, regardless of success/failure
+    imagesLoaded.value = true;
+  }
+};
+
 const generateImage = async (): Promise<void> => {
-  if (!dreamForm.description.trim()) return;
+  if (!dreamForm.description.trim() || !dreamId.value) return;
 
   generatingImage.value = true;
 
   try {
-    // TODO: Implement image generation API call
-    // This is a placeholder for the actual image generation functionality
-    await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate API call
+    // Call the image generation API
+    const response = await dreamsApi.generateImage(dreamId.value);
+    console.log('Image generation started:', response.data);
 
     $q.notify({
       type: 'positive',
-      message: 'Image generation feature coming soon!',
+      message: "Image generation started! You'll be notified when complete.",
       position: 'top',
     });
+
+    // Start polling for completion
+    pollImageStatus(response.data.id);
   } catch (error) {
     console.error('Error generating image:', error);
     $q.notify({
       type: 'negative',
-      message: 'Failed to generate image. Please try again.',
+      message: 'Failed to start image generation. Please try again.',
       position: 'top',
     });
   } finally {
     generatingImage.value = false;
   }
+};
+
+const pollImageStatus = (imageId: number): void => {
+  // Clear any existing polling
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+  }
+
+  // Create async function for checking status
+  const checkStatus = async (): Promise<void> => {
+    try {
+      if (!dreamId.value) return;
+
+      const response = await dreamsApi.getImage(dreamId.value, imageId);
+      const image = response.data as Image;
+
+      console.log('Image status:', image.generation_status);
+
+      // Update the image in our local state
+      const existingIndex = generatedImages.value.findIndex((img) => img.id === imageId);
+      if (existingIndex >= 0) {
+        generatedImages.value[existingIndex] = image;
+      } else {
+        generatedImages.value.push(image);
+      }
+
+      // Stop polling if completed or failed
+      if (
+        image.generation_status === ImageGenerationStatus.COMPLETED ||
+        image.generation_status === ImageGenerationStatus.FAILED
+      ) {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+
+        if (image.generation_status === ImageGenerationStatus.COMPLETED) {
+          $q.notify({
+            type: 'positive',
+            message: 'Image generation completed!',
+            position: 'top',
+          });
+        } else {
+          $q.notify({
+            type: 'negative',
+            message: 'Image generation failed.',
+            position: 'top',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking image status:', error);
+      // Don't show notification for polling errors
+    }
+  };
+
+  // Use void operator to indicate we're intentionally not awaiting
+  pollingInterval = setInterval(() => {
+    void checkStatus();
+  }, 8000); // Poll every 8 seconds
+
+  // Stop polling after 128 seconds
+  setTimeout(() => {
+    if (pollingInterval) {
+      clearInterval(pollingInterval);
+      pollingInterval = null;
+    }
+  }, 128 * 1000); // 128 seconds
 };
 
 const onSubmit = async (): Promise<void> => {
@@ -147,11 +294,42 @@ const goBack = (): void => {
 onMounted(() => {
   void fetchDream();
 });
+
+onUnmounted(() => {
+  // Clean up polling when component unmounts
+  if (pollingInterval) {
+    clearInterval(pollingInterval);
+    pollingInterval = null;
+  }
+});
 </script>
 
 <style scoped>
 .edit-dream-container {
   max-width: 600px;
   margin: 0 auto;
+}
+
+.image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.generated-image {
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  width: 100%;
+}
+
+/* Custom fade transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.8s ease-in-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

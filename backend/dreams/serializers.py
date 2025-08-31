@@ -41,8 +41,8 @@ class ImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Image
-        fields = ["id", "generation_status", "generation_prompt", "gcs_path", "created"]
-        read_only_fields = ["id", "generation_prompt", "gcs_path", "created"]
+        fields = ["id", "generation_status", "generation_prompt", "created"]
+        read_only_fields = ["id", "generation_prompt", "created"]
 
 
 class DreamSerializer(serializers.ModelSerializer):

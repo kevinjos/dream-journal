@@ -1,0 +1,49 @@
+# Multi-stage build for Celery worker
+FROM python:3.11-slim as builder
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install build dependencies (including GCC for some packages)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment and install dependencies
+COPY requirements.txt .
+ARG VIRTUAL_ENV=/home/venv
+RUN python -m venv ${VIRTUAL_ENV} && \
+    . ${VIRTUAL_ENV}/bin/activate && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+# Copy application code
+COPY . /app
+WORKDIR /app
+
+# Production stage using distroless
+FROM gcr.io/distroless/python3-debian12:latest
+
+ARG VIRTUAL_ENV=/home/venv
+
+# Copy virtual environment and application code
+COPY --from=builder ${VIRTUAL_ENV} ${VIRTUAL_ENV}
+COPY --from=builder /app /app
+WORKDIR /app
+
+# Set PYTHONPATH for Django and venv packages
+ENV PYTHONPATH=/app:/home/venv/lib/python3.11/site-packages
+
+# Create non-root user (distroless has limited user management)
+# Use the "nobody" user that exists in distroless
+USER 65534:65534
+
+# Note: HEALTHCHECK not supported in distroless - handle in Cloud Run config instead
+
+# Start Celery worker using wrapper script (like gunicorn pattern)
+ENTRYPOINT ["/usr/bin/python3.11", "celery_run.py"]
+CMD ["-A", "dream_journal", "worker", "--loglevel=info", "--concurrency=2", "--max-tasks-per-child=100"]
