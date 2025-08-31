@@ -101,11 +101,31 @@ resource "google_project_iam_member" "app_storage" {
   member  = "serviceAccount:${google_service_account.app_service_account.email}"
 }
 
+# Grant Cloud Build trigger service account permission to manage Pub/Sub IAM
+resource "google_project_iam_member" "cloudbuild_pubsub_admin" {
+  project = local.project_id
+  role    = "roles/pubsub.admin"
+  member  = "serviceAccount:cloudbuild-app-trigger@${local.project_id}.iam.gserviceaccount.com"
+}
+
+# Grant Cloud Build trigger service account permission to manage project IAM policies
+# This allows it to grant roles to other service accounts
+resource "google_project_iam_member" "cloudbuild_iam_admin" {
+  project = local.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
+  member  = "serviceAccount:cloudbuild-app-trigger@${local.project_id}.iam.gserviceaccount.com"
+}
+
 # Grant Pub/Sub access to Cloud Run service account for Celery broker
+# Note: This requires project IAM admin permissions to apply
 resource "google_project_iam_member" "app_pubsub" {
   project = local.project_id
   role    = "roles/pubsub.editor"
   member  = "serviceAccount:${google_service_account.app_service_account.email}"
+
+  depends_on = [
+    google_project_iam_member.cloudbuild_iam_admin
+  ]
 }
 
 # Grant Secret Manager access to Cloud Run service account

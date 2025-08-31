@@ -30,8 +30,9 @@ class HealthHandler(BaseHTTPRequestHandler):
         """Check Celery worker health using inspect ping."""
         try:
             # Use celery inspect to ping workers
-            inspect = self.celery_app.control.inspect()
-            pong = inspect.ping(timeout=5.0)
+            # Note: timeout is set on the inspect object, not the ping method
+            inspect = self.celery_app.control.inspect(timeout=5.0)
+            pong = inspect.ping()
 
             if pong:
                 # Worker responded to ping
