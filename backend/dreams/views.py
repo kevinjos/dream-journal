@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.models import User
 from django.db.models import Q, QuerySet
 from rest_framework import status, viewsets
@@ -225,8 +227,10 @@ class DreamViewSet(viewsets.ModelViewSet):
             if image.generation_status == Image.GenerationStatus.COMPLETED:
                 try:
                     data[i]["image_url"] = signed_url_service.get_signed_url(image)
-                except Exception:
-                    pass  # Skip URL if generation fails
+                except Exception as e:
+                    logging.error(
+                        f"Failed to generate signed URL for image {image.id}: {e}"
+                    )
 
         return Response(data)
 
@@ -252,7 +256,9 @@ class DreamViewSet(viewsets.ModelViewSet):
         if dream_image.generation_status == Image.GenerationStatus.COMPLETED:
             try:
                 data["image_url"] = signed_url_service.get_signed_url(dream_image)
-            except Exception:
-                pass  # Skip URL if generation fails
+            except Exception as e:
+                logging.error(
+                    f"Failed to generate signed URL for image {dream_image.id}: {e}"
+                )
 
         return Response(data)
