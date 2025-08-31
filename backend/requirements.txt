@@ -38,7 +38,6 @@ python-json-logger==3.3.0
 whitenoise==6.9.0
 
 # Celery and task queue dependencies
-celery[gcpubsub]==5.5.3
 celery[redis]==5.5.3
-redis==6.4.0
+kombu[gcpubsub]==5.5.4
 django-celery-results==2.6.0
