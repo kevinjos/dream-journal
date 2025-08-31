@@ -15,7 +15,7 @@ spec:
         run.googleapis.com/execution-environment: gen2
         run.googleapis.com/cpu-throttling: "false"
     spec:
-      serviceAccountName: celery-worker@${PROJECT_ID}.iam.gserviceaccount.com
+      serviceAccountName: cloud-run-app@${PROJECT_ID}.iam.gserviceaccount.com
       containers:
       - image: ${REGION}-docker.pkg.dev/${PROJECT_ID}/dream-journal/celery-worker:${SHORT_SHA}
         env:
