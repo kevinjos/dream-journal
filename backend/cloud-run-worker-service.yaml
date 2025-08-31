@@ -47,29 +47,17 @@ spec:
             memory: "512Mi"
             cpu: "500m"
         startupProbe:
-          exec:
-            command:
-            - /usr/bin/python3.11
-            - celery_run.py
-            - -A
-            - dream_journal
-            - inspect
-            - ping
-            - --timeout=10
+          httpGet:
+            path: /health
+            port: 8080
           initialDelaySeconds: 60
           timeoutSeconds: 10
           periodSeconds: 30
           failureThreshold: 3
         livenessProbe:
-          exec:
-            command:
-            - /usr/bin/python3.11
-            - celery_run.py
-            - -A
-            - dream_journal
-            - inspect
-            - ping
-            - --timeout=10
+          httpGet:
+            path: /health
+            port: 8080
           initialDelaySeconds: 30
           timeoutSeconds: 10
           periodSeconds: 60
