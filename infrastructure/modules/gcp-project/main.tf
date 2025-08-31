@@ -93,12 +93,6 @@ resource "google_service_account" "app_service_account" {
   display_name = "Cloud Run Application Service Account"
 }
 
-# Grant Generative Language API access to Cloud Run service account
-resource "google_project_iam_member" "app_generative_language" {
-  project = local.project_id
-  role    = "roles/generativelanguage.user"
-  member  = "serviceAccount:${google_service_account.app_service_account.email}"
-}
 
 # Grant Cloud Storage access to Cloud Run service account for image storage
 resource "google_project_iam_member" "app_storage" {

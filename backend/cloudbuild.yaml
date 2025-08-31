@@ -10,7 +10,8 @@ steps:
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:${SHORT_SHA}'
       - '-t'
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/backend:latest'
-      - './backend'
+      - '.'
+    dir: 'backend'
     id: 'build-backend'
 
   # Build the worker Docker image (parallel with backend)
@@ -23,7 +24,8 @@ steps:
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:${SHORT_SHA}'
       - '-t'
       - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:latest'
-      - './backend'
+      - '.'
+    dir: 'backend'
     id: 'build-worker'
 
   # Push the backend Docker image
