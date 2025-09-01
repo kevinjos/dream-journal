@@ -907,3 +907,48 @@ resource "google_storage_bucket_iam_member" "dream_images_access" {
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.app_service_account.email}"
 }
+
+# Google Cloud Storage bucket for development dream images
+resource "google_storage_bucket" "dream_images_dev" {
+  name     = "${local.project_id}-dream-images-dev"
+  project  = local.project_id
+  location = var.region
+
+  # Enable uniform bucket-level access
+  uniform_bucket_level_access = true
+
+  # Public access prevention
+  public_access_prevention = "enforced"
+
+  # Versioning for data protection
+  versioning {
+    enabled = true
+  }
+
+  # Shorter lifecycle for dev environment
+  lifecycle_rule {
+    condition {
+      age = 30  # Delete old versions after 30 days in dev
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  # CORS configuration for local development
+  cors {
+    origin          = ["http://localhost:9000", "http://localhost:8081"]
+    method          = ["GET", "HEAD", "PUT", "POST", "DELETE"]
+    response_header = ["*"]
+    max_age_seconds = 3600
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+# Grant Cloud Run service account access to the dev dream images bucket
+resource "google_storage_bucket_iam_member" "dream_images_dev_access" {
+  bucket = google_storage_bucket.dream_images_dev.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.app_service_account.email}"
+}

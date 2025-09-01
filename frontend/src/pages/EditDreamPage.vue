@@ -2,13 +2,16 @@
   <q-page class="q-pa-sm q-pa-md-md">
     <div class="edit-dream-container">
       <!-- Header -->
-      <div class="row items-center q-mb-md">
-        <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
-        <div class="text-h6 text-weight-medium">Edit Dream</div>
+      <div class="row items-center justify-between q-mb-md">
+        <div class="row items-center">
+          <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
+          <div class="text-h6 text-weight-medium">Dreamscape</div>
+        </div>
+        <SyncStatusIndicator :status="syncStatus" :error="syncError" />
       </div>
 
       <!-- Dream Form -->
-      <q-form @submit="onSubmit" class="column q-gutter-md">
+      <div class="column q-gutter-md">
         <DreamFormFields
           v-model:quality-input="qualityInput"
           v-model:description="dreamForm.description"
@@ -68,37 +71,36 @@
             </div>
           </div>
         </div>
-      </q-form>
+      </div>
     </div>
-
-    <StickySubmitButton
-      label="Save Changes"
-      loading-text="Saving..."
-      :loading="loading"
-      @click="onSubmit"
-    />
   </q-page>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import { ref, onMounted, computed, onUnmounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { dreamsApi } from 'src/services/web';
 import { useDreamForm } from 'src/composables/useDreamForm';
 import DreamFormFields from 'components/DreamFormFields.vue';
-import StickySubmitButton from 'components/StickySubmitButton.vue';
+import SyncStatusIndicator from 'components/SyncStatusIndicator.vue';
+import type { SyncStatus } from 'components/SyncStatusIndicator.vue';
 import type { Image } from 'src/types/models';
 import { ImageGenerationStatus } from 'src/types/models';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
-const loading = ref(false);
 const generatingImage = ref(false);
 const generatedImages = ref<Image[]>([]);
 const imagesLoaded = ref(false); // Track if we've loaded images from API
 let pollingInterval: NodeJS.Timeout | null = null;
+
+// Auto-save state management
+const syncStatus = ref<SyncStatus>('synced');
+const syncError = ref<string>('');
+let saveDebounceTimer: NodeJS.Timeout | null = null;
+const isInitialLoad = ref(true);
 
 const dreamId = computed(() => route.params.id as string);
 
@@ -109,6 +111,77 @@ const completedImages = computed(() =>
 
 // Use the dream form composable
 const { qualityInput, dreamForm, addQuality, removeQuality, populateForm } = useDreamForm();
+
+// Auto-save function with field-specific updates
+const autoSave = async (fields: Partial<typeof dreamForm>, immediate = false): Promise<void> => {
+  if (isInitialLoad.value || !dreamId.value) return;
+
+  // Clear any existing debounce timer for immediate saves
+  if (immediate && saveDebounceTimer) {
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = null;
+  }
+
+  const performSave = async (): Promise<void> => {
+    syncStatus.value = 'saving';
+    syncError.value = '';
+
+    try {
+      // Only send the fields that changed
+      await dreamsApi.update(dreamId.value, fields);
+      syncStatus.value = 'synced';
+    } catch (error) {
+      console.error('Error auto-saving dream:', error);
+      syncStatus.value = 'error';
+      syncError.value = 'Failed to save';
+
+      $q.notify({
+        type: 'negative',
+        message: 'Failed to save changes. Retrying...',
+        position: 'top',
+      });
+
+      // Retry after 3 seconds with the same fields
+      setTimeout(() => {
+        void autoSave(fields, true);
+      }, 3000);
+    }
+  };
+
+  if (immediate) {
+    await performSave();
+  } else {
+    // Debounce for description changes
+    syncStatus.value = 'modified';
+
+    if (saveDebounceTimer) {
+      clearTimeout(saveDebounceTimer);
+    }
+
+    saveDebounceTimer = setTimeout(() => {
+      void performSave();
+    }, 4000); // 4 second debounce
+  }
+};
+
+// Watch for description changes
+watch(
+  () => dreamForm.description,
+  () => {
+    // Only send description field
+    void autoSave({ description: dreamForm.description }, false); // Debounced save
+  },
+);
+
+// Watch for quality changes
+watch(
+  () => dreamForm.quality_names,
+  () => {
+    // Only send quality_names field
+    void autoSave({ quality_names: dreamForm.quality_names }, true); // Immediate save
+  },
+  { deep: true },
+);
 
 const fetchDream = async (): Promise<void> => {
   if (!dreamId.value) return;
@@ -125,6 +198,11 @@ const fetchDream = async (): Promise<void> => {
 
     // Fetch existing images for this dream
     await fetchImages();
+
+    // Mark initial load as complete
+    setTimeout(() => {
+      isInitialLoad.value = false;
+    }, 100);
   } catch (error) {
     console.error('Error fetching dream:', error);
     $q.notify({
@@ -264,29 +342,6 @@ const pollImageStatus = (imageId: number): void => {
   }, 128 * 1000); // 128 seconds
 };
 
-const onSubmit = async (): Promise<void> => {
-  loading.value = true;
-
-  try {
-    await dreamsApi.update(dreamId.value, dreamForm);
-
-    $q.notify({
-      type: 'positive',
-      message: 'Dream updated successfully!',
-      position: 'top',
-    });
-  } catch (error) {
-    console.error('Error updating dream:', error);
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update dream. Please try again.',
-      position: 'top',
-    });
-  } finally {
-    loading.value = false;
-  }
-};
-
 const goBack = (): void => {
   void router.push('/dreams');
 };
@@ -300,6 +355,12 @@ onUnmounted(() => {
   if (pollingInterval) {
     clearInterval(pollingInterval);
     pollingInterval = null;
+  }
+
+  // Clean up debounce timer
+  if (saveDebounceTimer) {
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = null;
   }
 });
 </script>

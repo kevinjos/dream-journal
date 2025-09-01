@@ -46,7 +46,7 @@ export const dreamsApi = {
 
   create: (dream: Partial<Dream>) => api.post('/dreams/', dream),
 
-  update: (id: string | number, dream: Partial<Dream>) => api.put(`/dreams/${id}/`, dream),
+  update: (id: string | number, dream: Partial<Dream>) => api.patch(`/dreams/${id}/`, dream),
 
   delete: (id: string | number) => api.delete(`/dreams/${id}/`),
 
