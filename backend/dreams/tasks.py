@@ -39,12 +39,15 @@ def get_storage_client() -> storage.Client:
 
 
 @shared_task(bind=True, max_retries=3)
-def generate_dream_image(self: Task, image_id: int) -> dict[str, Any]:
+def generate_dream_image(
+    self: Task, image_id: int, source_image_id: int | None = None
+) -> dict[str, Any]:
     """
-    Celery task to generate an image for a dream using Gemini API and upload to GCS.
+    Celery task to generate or alter an image for a dream using Gemini API and upload to GCS.
 
     Args:
         image_id: The ID of the Image record to generate
+        source_image_id: Optional ID of source image for alterations
 
     Returns:
         dict containing task status and result information
@@ -65,7 +68,51 @@ def generate_dream_image(self: Task, image_id: int) -> dict[str, Any]:
         image.generation_status = Image.GenerationStatus.GENERATING
         image.save()
 
+        # Prepare content for Gemini API
+        contents = []
+
+        # Handle source image for alterations
+        if source_image_id:
+            logger.info(
+                f"Getting image to alter for image {image_id} from source {source_image_id}"
+            )
+
+            try:
+                source_image = Image.objects.get(id=source_image_id)
+                if source_image.generation_status != Image.GenerationStatus.COMPLETED:
+                    raise ValueError(f"Source image {source_image_id} is not completed")
+
+                # Download source image from GCS
+                bucket_name = os.environ.get("GCS_BUCKET_NAME", "dream-journal-images")
+                storage_client = get_storage_client()
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(source_image.gcs_path)
+
+                # Download image data
+                source_image_bytes = blob.download_as_bytes()
+                source_image_base64 = base64.b64encode(source_image_bytes).decode(
+                    "utf-8"
+                )
+
+                # Add image to contents
+                contents.append(
+                    {
+                        "inline_data": {
+                            "mime_type": "image/png",
+                            "data": source_image_base64,
+                        }
+                    }
+                )
+
+            except Image.DoesNotExist as exc:
+                raise ValueError(f"Source image {source_image_id} not found") from exc
+            except Exception as exc:
+                raise ValueError(f"Failed to download source image: {exc}") from exc
+
         logger.info(f"Starting image generation for image {image_id}")
+
+        # Add text prompt to contents
+        contents.append(image.generation_prompt)
 
         # Get singleton Gemini client
         gemini_client = get_gemini_client()
@@ -73,7 +120,7 @@ def generate_dream_image(self: Task, image_id: int) -> dict[str, Any]:
         # Call Gemini 2.5 Flash Image API
         response = gemini_client.models.generate_content(
             model="gemini-2.5-flash-image-preview",
-            contents=[image.generation_prompt],
+            contents=contents,
         )
 
         # Extract generated image data

@@ -1,5 +1,5 @@
 <template>
-  <q-page class="q-pa-sm q-pa-md-md">
+  <q-page class="q-pa-sm">
     <div class="edit-dream-container">
       <!-- Header -->
       <div class="row items-center justify-between q-mb-md">
@@ -28,7 +28,7 @@
           enter-from-class="fade-enter-from"
           leave-to-class="fade-leave-to"
         >
-          <div v-if="imagesLoaded && completedImages.length === 0">
+          <div v-if="imagesLoaded && !latestCompletedImage">
             <q-btn
               color="secondary"
               outline
@@ -46,31 +46,73 @@
             </q-btn>
           </div>
         </transition>
+      </div>
 
-        <!-- Generated Images Display -->
-        <div v-if="completedImages.length > 0" class="q-mt-md">
-          <div v-for="image in completedImages" :key="image.id" class="q-mb-md">
+      <!-- Generated Images Display -->
+      <div v-if="latestCompletedImage" class="q-mt-md q-mb-xl">
+        <q-card class="q-mb-md">
+          <div class="q-pa-sm">
             <!-- Show completed image -->
-            <div v-if="image.image_url" class="image-container">
-              <q-img
-                :src="image.image_url"
-                :alt="image.generation_prompt"
-                class="generated-image"
-                ratio="1"
-                fit="cover"
-              >
-                <template v-slot:error>
-                  <div class="absolute-full flex flex-center bg-grey-3 text-grey-7">
-                    <div class="text-center">
-                      <q-icon name="broken_image" size="24px" />
-                      <div class="text-caption">Failed to load</div>
-                    </div>
+            <q-img
+              v-if="latestCompletedImage.image_url"
+              :src="latestCompletedImage.image_url"
+              :alt="latestCompletedImage.generation_prompt"
+              ratio="1"
+              fit="cover"
+              class="rounded-borders image-border"
+            >
+              <template v-slot:error>
+                <div class="absolute-full flex flex-center bg-grey-3 text-grey-7">
+                  <div class="text-center">
+                    <q-icon name="broken_image" size="24px" />
+                    <div class="text-caption">Failed to load</div>
                   </div>
+                </div>
+              </template>
+            </q-img>
+          </div>
+
+          <!-- Request Changes Section -->
+          <div class="q-pa-sm q-pt-none">
+            <div class="row q-gutter-sm items-start">
+              <q-input
+                v-model="imageChangePrompt"
+                type="textarea"
+                autogrow
+                outlined
+                dense
+                placeholder="Alter image"
+                class="col"
+                :input-style="{ minHeight: '38px', resize: 'none' }"
+                @keyup.enter.stop="regenerateImage"
+              >
+                <template v-slot:append>
+                  <q-icon
+                    v-if="imageChangePrompt"
+                    name="close"
+                    class="cursor-pointer"
+                    @click="imageChangePrompt = ''"
+                  />
                 </template>
-              </q-img>
+              </q-input>
+              <q-btn
+                round
+                color="secondary"
+                outline
+                icon="auto_fix_high"
+                size="sm"
+                :loading="generatingImage"
+                :disable="generatingImage || !imageChangePrompt.trim()"
+                @click="regenerateImage"
+                style="flex-shrink: 0"
+              >
+                <template v-slot:loading>
+                  <q-spinner-hourglass />
+                </template>
+              </q-btn>
             </div>
           </div>
-        </div>
+        </q-card>
       </div>
     </div>
   </q-page>
@@ -95,6 +137,7 @@ const generatingImage = ref(false);
 const generatedImages = ref<Image[]>([]);
 const imagesLoaded = ref(false); // Track if we've loaded images from API
 let pollingInterval: NodeJS.Timeout | null = null;
+const imageChangePrompt = ref('');
 
 // Auto-save state management
 const syncStatus = ref<SyncStatus>('synced');
@@ -104,10 +147,13 @@ const isInitialLoad = ref(true);
 
 const dreamId = computed(() => route.params.id as string);
 
-// Computed property to show only completed images
-const completedImages = computed(() =>
-  generatedImages.value.filter((img) => img.generation_status === ImageGenerationStatus.COMPLETED),
-);
+// Computed property to show only the latest completed image
+const latestCompletedImage = computed(() => {
+  const completed = generatedImages.value
+    .filter((img) => img.generation_status === ImageGenerationStatus.COMPLETED)
+    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+  return completed.length > 0 ? completed[0] : null;
+});
 
 // Use the dream form composable
 const { qualityInput, dreamForm, addQuality, removeQuality, populateForm } = useDreamForm();
@@ -221,18 +267,21 @@ const fetchImages = async (): Promise<void> => {
     const response = await dreamsApi.getImages(dreamId.value);
     generatedImages.value = response.data as Image[];
 
-    // Check if any images are still generating and start polling
-    const generatingImages = generatedImages.value.filter(
-      (img) =>
-        img.generation_status === ImageGenerationStatus.GENERATING ||
-        img.generation_status === ImageGenerationStatus.PENDING,
-    );
+    // Check if the most recent image is generating/pending and start polling
+    if (generatedImages.value.length > 0) {
+      // Sort images by creation date to find the most recent
+      const sortedImages = [...generatedImages.value].sort(
+        (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime(),
+      );
+      const mostRecentImage = sortedImages[0];
 
-    if (generatingImages.length > 0) {
-      // Start polling for the most recent generating image
-      const latestGeneratingImage = generatingImages[generatingImages.length - 1];
-      if (latestGeneratingImage) {
-        pollImageStatus(latestGeneratingImage.id);
+      // Only poll if the most recent image exists and is generating or pending
+      if (
+        mostRecentImage &&
+        (mostRecentImage.generation_status === ImageGenerationStatus.GENERATING ||
+          mostRecentImage.generation_status === ImageGenerationStatus.PENDING)
+      ) {
+        pollImageStatus(mostRecentImage.id);
       }
     }
   } catch (error) {
@@ -252,7 +301,6 @@ const generateImage = async (): Promise<void> => {
   try {
     // Call the image generation API
     const response = await dreamsApi.generateImage(dreamId.value);
-    console.log('Image generation started:', response.data);
 
     $q.notify({
       type: 'positive',
@@ -274,6 +322,42 @@ const generateImage = async (): Promise<void> => {
   }
 };
 
+const regenerateImage = async (): Promise<void> => {
+  if (!imageChangePrompt.value.trim() || !dreamId.value || !latestCompletedImage.value) return;
+
+  generatingImage.value = true;
+
+  try {
+    // Call the alter_image API with the custom prompt
+    const response = await dreamsApi.alterImage(
+      dreamId.value,
+      latestCompletedImage.value.id,
+      imageChangePrompt.value,
+    );
+
+    $q.notify({
+      type: 'positive',
+      message: 'Image alteration started with your changes!',
+      position: 'top',
+    });
+
+    // Clear the prompt input
+    imageChangePrompt.value = '';
+
+    // Start polling for completion
+    pollImageStatus(response.data.id);
+  } catch (error) {
+    console.error('Error altering image:', error);
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to alter image. Please try again.',
+      position: 'top',
+    });
+  } finally {
+    generatingImage.value = false;
+  }
+};
+
 const pollImageStatus = (imageId: number): void => {
   // Clear any existing polling
   if (pollingInterval) {
@@ -287,8 +371,6 @@ const pollImageStatus = (imageId: number): void => {
 
       const response = await dreamsApi.getImage(dreamId.value, imageId);
       const image = response.data as Image;
-
-      console.log('Image status:', image.generation_status);
 
       // Update the image in our local state
       const existingIndex = generatedImages.value.findIndex((img) => img.id === imageId);
@@ -368,19 +450,6 @@ onUnmounted(() => {
 <style scoped>
 .edit-dream-container {
   max-width: 600px;
-  margin: 0 auto;
-}
-
-.image-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.generated-image {
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  width: 100%;
 }
 
 /* Custom fade transition */

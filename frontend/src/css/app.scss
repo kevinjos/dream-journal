@@ -8,3 +8,12 @@ html,
 body {
   overflow-x: hidden;
 }
+
+// Theme-aware image borders - matches Quasar input field borders
+.image-border {
+  border: 1px solid rgba(0, 0, 0, 0.24); /* Light mode default */
+}
+
+.body--dark .image-border {
+  border: 1px solid rgba(255, 255, 255, 0.6); /* Dark mode override */
+}

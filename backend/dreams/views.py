@@ -17,6 +17,7 @@ from .serializers import (
     QualitySerializer,
     QualityStatisticSerializer,
 )
+from .services.prompt_service import PromptService
 from .services.signed_url import signed_url_service
 
 
@@ -82,6 +83,50 @@ class DreamViewSet(viewsets.ModelViewSet):
 
     permission_classes = [IsAuthenticatedAndOwner]
     pagination_class = DynamicPageSizePagination
+
+    def _generate_gcs_path(self, dream: Dream) -> str:
+        """Generate a unique GCS path for a dream image."""
+        import uuid
+        from datetime import datetime
+
+        image_id = str(uuid.uuid4())
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return (
+            f"users/{dream.user.pk}/dreams/{dream.pk}/images/{image_id}_{timestamp}.png"
+        )
+
+    def _create_and_queue_image(
+        self, dream: Dream, prompt: str, source_image_id: int | None = None
+    ) -> Image:
+        """Create an Image record and queue it for generation.
+
+        Args:
+            dream: The Dream this image belongs to
+            prompt: The generation prompt
+            source_image_id: Optional ID of source image for alterations
+        """
+        # Generate unique GCS path
+        gcs_path = self._generate_gcs_path(dream)
+
+        # Create Image record with pending status
+        dream_image = Image.objects.create(
+            dream=dream,
+            gcs_path=gcs_path,
+            generation_prompt=prompt,
+            generation_status=Image.GenerationStatus.PENDING,
+        )
+
+        # Queue the Celery task with optional source image ID
+        from dream_journal.celery import app as celery_app
+
+        # Pass source_image_id as second argument if provided
+        task_args = [dream_image.pk]
+        if source_image_id is not None:
+            task_args.append(source_image_id)
+
+        celery_app.send_task("dreams.tasks.generate_dream_image", args=task_args)
+
+        return dream_image
 
     def get_queryset(self) -> QuerySet[Dream]:
         """
@@ -163,39 +208,12 @@ class DreamViewSet(viewsets.ModelViewSet):
         """Generate an AI image for this dream using Celery task queue."""
         dream = self.get_object()  # This already checks ownership via permissions
 
-        # Get optional custom prompt from request
-        custom_prompt = request.data.get("prompt")
-
         try:
-            # Create the prompt
-            if custom_prompt:
-                prompt = custom_prompt
-            else:
-                # Use dream description as base prompt, with some artistic enhancement
-                prompt = f"A dreamlike, surreal artistic interpretation of: {dream.description}"
+            # Create the prompt using PromptService
+            prompt = PromptService.generate_image_prompt(dream)
 
-            # Generate unique GCS path
-            import uuid
-            from datetime import datetime
-
-            image_id = str(uuid.uuid4())
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            gcs_path = f"users/{dream.user.pk}/dreams/{dream.pk}/images/{image_id}_{timestamp}.png"
-
-            # Create Image record with pending status
-            dream_image = Image.objects.create(
-                dream=dream,
-                gcs_path=gcs_path,
-                generation_prompt=prompt,
-                generation_status=Image.GenerationStatus.PENDING,
-            )
-
-            # Queue the Celery task using string-based task name to avoid import issues
-            from dream_journal.celery import app as celery_app
-
-            celery_app.send_task(
-                "dreams.tasks.generate_dream_image", args=[dream_image.pk]
-            )
+            # Create and queue the image
+            dream_image = self._create_and_queue_image(dream, prompt)
 
             return Response(
                 {
@@ -210,6 +228,65 @@ class DreamViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response(
                 {"error": f"Failed to start image generation: {e!s}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=["post"], url_path=r"alter_image/(?P<image_id>\d+)")
+    def alter_image(
+        self, request: Request, pk: str | None = None, image_id: str | None = None
+    ) -> Response:
+        """Generate an altered version of a specific dream image with a custom prompt."""
+        dream = self.get_object()  # This already checks ownership via permissions
+
+        # Get the source image to alter
+        try:
+            source_image = dream.images.get(pk=image_id)
+            if source_image.generation_status != Image.GenerationStatus.COMPLETED:
+                return Response(
+                    {"error": "Source image must be completed before alteration"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except Image.DoesNotExist:
+            return Response(
+                {"error": "Image not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get required custom prompt from request
+        user_prompt = request.data.get("prompt")
+        if not user_prompt:
+            return Response(
+                {"error": "Custom prompt is required for image alteration"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            # Check if dream has been updated since the source image was created
+            dream_updated_since_image = dream.updated > source_image.created
+
+            # Generate the alteration prompt using PromptService
+            alteration_prompt = PromptService.generate_alteration_prompt(
+                user_prompt, dream, dream_updated_since_image
+            )
+
+            # Create and queue the altered image with source image reference
+            dream_image = self._create_and_queue_image(
+                dream, alteration_prompt, source_image_id=source_image.pk
+            )
+
+            return Response(
+                {
+                    "id": dream_image.pk,
+                    "status": dream_image.generation_status,
+                    "prompt": dream_image.generation_prompt,
+                    "created": dream_image.created,
+                    "source_image_id": source_image.pk,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": f"Failed to start image alteration: {e!s}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

@@ -51,8 +51,10 @@ export const dreamsApi = {
   delete: (id: string | number) => api.delete(`/dreams/${id}/`),
 
   // Image generation APIs
-  generateImage: (id: string | number, prompt?: string) =>
-    api.post(`/dreams/${id}/generate_image/`, prompt ? { prompt } : {}),
+  generateImage: (id: string | number) => api.post(`/dreams/${id}/generate_image/`),
+
+  alterImage: (dreamId: string | number, imageId: string | number, prompt: string) =>
+    api.post(`/dreams/${dreamId}/alter_image/${imageId}/`, { prompt }),
 
   getImages: (id: string | number) => api.get(`/dreams/${id}/images/`),
 
