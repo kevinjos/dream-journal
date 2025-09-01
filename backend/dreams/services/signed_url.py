@@ -15,10 +15,11 @@ class SignedUrlService:
 
     def __init__(self) -> None:
         self.bucket_name = settings.GCS_BUCKET_NAME
-        self.storage_client = storage.Client.from_service_account_info(
-            json.loads(settings.SERVICE_ACCOUNT_JSON)
-        )
-        self.bucket = self.storage_client.bucket(self.bucket_name)
+        if settings.SERVICE_ACCOUNT_JSON:
+            self.storage_client = storage.Client.from_service_account_info(
+                json.loads(settings.SERVICE_ACCOUNT_JSON)
+            )
+            self.bucket = self.storage_client.bucket(self.bucket_name)
 
     def get_signed_url(
         self, dream_image: Image, method: str = "GET", expiration_hours: int = 1

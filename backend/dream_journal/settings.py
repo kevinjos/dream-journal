@@ -270,11 +270,12 @@ if not DEBUG:
     SERVICE_ACCOUNT_JSON = os.environ.get("SERVICE_ACCOUNT_JSON")
 else:
     # Local development - read JSON from file if available
-    SERVICE_ACCOUNT_PATH = os.environ.get(
-        "SERVICE_ACCOUNT_PATH", "This must be set in .env.local"
-    )
-    with open(SERVICE_ACCOUNT_PATH) as f:
-        SERVICE_ACCOUNT_JSON = f.read()
+    SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
+    if SERVICE_ACCOUNT_PATH and os.path.exists(SERVICE_ACCOUNT_PATH):
+        with open(SERVICE_ACCOUNT_PATH) as f:
+            SERVICE_ACCOUNT_JSON = f.read()
+    else:
+        SERVICE_ACCOUNT_JSON = None
 
 # GCS Configuration for signed URLs
 GCS_BUCKET_NAME = os.environ.get(
