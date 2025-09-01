@@ -18,6 +18,9 @@ class SignedUrlService:
     def __init__(self) -> None:
         self.bucket_name = settings.GCS_BUCKET_NAME
         self.service_account_path = getattr(settings, "SERVICE_ACCOUNT_PATH", None)
+        self.service_account_email = getattr(
+            settings, "GCS_SERVICE_ACCOUNT_EMAIL", None
+        )
 
         if self.service_account_path:
             # Use service account JSON key (has private key for signing)
@@ -52,8 +55,12 @@ class SignedUrlService:
             signed_url = blob.generate_signed_url(expiration=expiration, method=method)
         else:
             # Use IAM-based signing for Cloud Run (requires iam.serviceAccountTokenCreator role)
+            # Must explicitly provide service account email for Compute Engine credentials
             signed_url = blob.generate_signed_url(
-                expiration=expiration, method=method, version="v4"
+                expiration=expiration,
+                method=method,
+                version="v4",
+                service_account_email=self.service_account_email,
             )
 
         return signed_url
