@@ -116,6 +116,13 @@ resource "google_secret_manager_secret_version" "service_account_key_version" {
   secret_data = base64decode(google_service_account_key.app_service_account_key.private_key)
 }
 
+# Grant the service account access to its own key secret
+resource "google_secret_manager_secret_iam_member" "service_account_key_access" {
+  secret_id = google_secret_manager_secret.service_account_key.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.app_service_account.email}"
+}
+
 
 # Grant Cloud Storage access to Cloud Run service account for image storage
 resource "google_project_iam_member" "app_storage" {
