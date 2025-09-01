@@ -93,6 +93,29 @@ resource "google_service_account" "app_service_account" {
   display_name = "Cloud Run Application Service Account"
 }
 
+# Create a service account key for signed URL generation
+resource "google_service_account_key" "app_service_account_key" {
+  service_account_id = google_service_account.app_service_account.name
+  key_algorithm      = "KEY_ALG_RSA_2048"
+}
+
+# Store the service account key as a secret
+resource "google_secret_manager_secret" "service_account_key" {
+  secret_id = "cloud-run-app-sa-key"
+  project   = local.project_id
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "service_account_key_version" {
+  secret      = google_secret_manager_secret.service_account_key.id
+  secret_data = base64decode(google_service_account_key.app_service_account_key.private_key)
+}
+
 
 # Grant Cloud Storage access to Cloud Run service account for image storage
 resource "google_project_iam_member" "app_storage" {

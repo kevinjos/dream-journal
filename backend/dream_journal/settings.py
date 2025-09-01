@@ -266,12 +266,15 @@ if not DEBUG:
     SESSION_COOKIE_SAMESITE = "Strict"
     # CSRF cookie settings removed - we use JWT authentication, not CSRF tokens
 
-    # GCS Service account email for IAM-based signed URL generation in Cloud Run
-    PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT")
-    GCS_SERVICE_ACCOUNT_EMAIL = f"cloud-run-app@{PROJECT_ID}.iam.gserviceaccount.com"
+    # Service account JSON for signed URL generation
+    SERVICE_ACCOUNT_JSON = os.environ.get("SERVICE_ACCOUNT_JSON")
 else:
-    SERVICE_ACCOUNT_PATH = os.environ.get("SERVICE_ACCOUNT_PATH")
-    GCS_SERVICE_ACCOUNT_EMAIL = None
+    # Local development - read JSON from file if available
+    SERVICE_ACCOUNT_PATH = os.environ.get(
+        "SERVICE_ACCOUNT_PATH", "This must be set in .env.local"
+    )
+    with open(SERVICE_ACCOUNT_PATH) as f:
+        SERVICE_ACCOUNT_JSON = f.read()
 
 # GCS Configuration for signed URLs
 GCS_BUCKET_NAME = os.environ.get(
