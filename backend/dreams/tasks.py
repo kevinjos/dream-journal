@@ -38,7 +38,7 @@ def get_storage_client() -> storage.Client:
     return _storage_client
 
 
-@shared_task(bind=True, max_retries=3)
+@shared_task(bind=True, max_retries=3, rate_limit="16/h")
 def generate_dream_image(
     self: Task, image_id: int, source_image_id: int | None = None
 ) -> dict[str, Any]:
