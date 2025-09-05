@@ -56,6 +56,9 @@ class DreamSerializer(serializers.ModelSerializer):
     quality_names = serializers.ListField(
         child=serializers.CharField(max_length=128), write_only=True, required=False
     )
+    # Add public field and ownership check (no username for anonymous sharing)
+    is_public = serializers.BooleanField(required=False, default=False)
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Dream
@@ -66,10 +69,19 @@ class DreamSerializer(serializers.ModelSerializer):
             "images",
             "quality_ids",
             "quality_names",
+            "is_public",
+            "is_owner",
             "created",
             "updated",
         ]
-        read_only_fields = ["id", "images", "created", "updated"]
+        read_only_fields = ["id", "images", "is_owner", "created", "updated"]
+
+    def get_is_owner(self, obj: Dream) -> bool:
+        """Check if requesting user owns this dream."""
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            return obj.user == request.user
+        return False
 
     def create(self, validated_data: dict[str, Any]) -> Dream:
         """Create a dream with quality handling."""
@@ -144,8 +156,25 @@ class DreamListSerializer(serializers.ModelSerializer):
 
     qualities = QualitySerializer(many=True, read_only=True)
     images = ImageSerializer(many=True, read_only=True)
+    is_public = serializers.BooleanField(read_only=True)
+    is_owner = serializers.SerializerMethodField()
 
     class Meta:
         model = Dream
-        fields = ["id", "description", "qualities", "images", "created"]
-        read_only_fields = ["id", "created"]
+        fields = [
+            "id",
+            "description",
+            "qualities",
+            "images",
+            "is_public",
+            "is_owner",
+            "created",
+        ]
+        read_only_fields = ["id", "is_public", "is_owner", "created"]
+
+    def get_is_owner(self, obj: Dream) -> bool:
+        """Check if requesting user owns this dream."""
+        request = self.context.get("request")
+        if request and hasattr(request, "user"):
+            return obj.user == request.user
+        return False

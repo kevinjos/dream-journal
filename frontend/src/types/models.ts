@@ -18,6 +18,8 @@ export interface Dream {
   updated: string;
   qualities?: Quality[];
   images?: Image[];
+  is_public?: boolean;
+  is_owner?: boolean;
 }
 
 export interface Quality {

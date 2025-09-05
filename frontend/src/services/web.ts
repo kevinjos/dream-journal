@@ -60,6 +60,12 @@ export const dreamsApi = {
 
   getImage: (dreamId: string | number, imageId: string | number) =>
     api.get(`/dreams/${dreamId}/images/${imageId}/`),
+
+  // Astral Plane API for public dreams
+  getAstralPlane: (params?: string) => {
+    const url = `/dreams/astral_plane/${params ? '?' + params : ''}`;
+    return api.get(url);
+  },
 };
 
 // Qualities API calls

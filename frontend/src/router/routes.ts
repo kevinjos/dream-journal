@@ -29,6 +29,8 @@ const routes: RouteRecordRaw[] = [
       { path: '', component: () => import('pages/HomePage.vue') },
       { path: 'dreams', component: () => import('pages/DreamsListPage.vue') },
       { path: 'dreams/create', component: () => import('pages/CreateDreamPage.vue') },
+      { path: 'dreams/astral-plane', component: () => import('pages/AstralPlanePage.vue') },
+      { path: 'dreams/:id', component: () => import('pages/ViewDreamPage.vue') },
       { path: 'dreams/:id/edit', component: () => import('pages/EditDreamPage.vue') },
       { path: 'qualities', component: () => import('pages/QualityMapPage.vue') },
     ],

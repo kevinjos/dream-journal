@@ -203,6 +203,12 @@ class Dream(models.Model):
         Quality, blank=True, help_text="Single-word qualities describing this dream"
     )
 
+    # Public sharing
+    is_public = models.BooleanField(
+        default=False,
+        help_text="Whether this dream is shared anonymously in The Astral Plane",
+    )
+
     # Timestamps
     created = models.DateTimeField(
         auto_now_add=True, help_text="When the dream entry was first created"
@@ -215,6 +221,7 @@ class Dream(models.Model):
         ordering = ["-created"]  # Most recent dreams first
         indexes = [
             models.Index(fields=["user", "-created"]),  # For user's dreams listing
+            models.Index(fields=["is_public", "-created"]),  # For public dreams listing
         ]
 
     def __str__(self) -> str:

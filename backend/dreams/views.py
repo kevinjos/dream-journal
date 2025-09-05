@@ -9,7 +9,7 @@ from rest_framework.response import Response
 
 from .models import Dream, Image, Quality
 from .pagination import DynamicPageSizePagination
-from .permissions import IsAuthenticatedAndOwner
+from .permissions import IsAuthenticatedAndIsOwnerOrIsPublic, IsAuthenticatedAndOwner
 from .serializers import (
     DreamListSerializer,
     DreamSerializer,
@@ -77,11 +77,12 @@ class QualityViewSet(viewsets.ModelViewSet):
 
 class DreamViewSet(viewsets.ModelViewSet):
     """
-    ViewSet for Dream model with user-scoped access.
-    Users can only see and modify their own dreams.
+    ViewSet for Dream model with public sharing support.
+    - Authenticated users can view public dreams OR their own dreams
+    - Only owners can modify their dreams
     """
 
-    permission_classes = [IsAuthenticatedAndOwner]
+    permission_classes = [IsAuthenticatedAndIsOwnerOrIsPublic]
     pagination_class = DynamicPageSizePagination
 
     def _generate_gcs_path(self, dream: Dream) -> str:
@@ -130,11 +131,13 @@ class DreamViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self) -> QuerySet[Dream]:
         """
-        Filter dreams to only those owned by the requesting user.
+        Filter dreams to those owned by the user OR marked as public.
         Supports optional quality filtering via query parameter.
         """
-        queryset = Dream.objects.filter(user=self.request.user).prefetch_related(
-            "qualities"
+        queryset = (
+            Dream.objects.filter(Q(user=self.request.user) | Q(is_public=True))
+            .prefetch_related("qualities")
+            .distinct()
         )
 
         # Filter by quality if quality query parameter is provided
@@ -202,6 +205,29 @@ class DreamViewSet(viewsets.ModelViewSet):
         }
 
         return Response(graph_data)
+
+    @action(detail=False, methods=["get"])
+    def astral_plane(self, request: Request) -> Response:
+        """Get all public dreams anonymously for The Astral Plane."""
+        queryset = Dream.objects.filter(is_public=True).prefetch_related("qualities")
+
+        # Apply search if provided
+        search_query = request.query_params.get("search")
+        if search_query and search_query.strip():
+            search_term = search_query.strip()
+            queryset = queryset.filter(
+                Q(description__icontains=search_term)
+                | Q(qualities__name__icontains=search_term)
+            ).distinct()
+
+        # Apply pagination
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=["post"])
     def generate_image(self, request: Request, pk: str | None = None) -> Response:

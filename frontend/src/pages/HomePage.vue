@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-sm q-pa-md-md">
-    <div class="home-container">
+    <div class="page-container">
       <!-- Header -->
       <div class="text-center q-mb-xl">
         <div class="text-h4 text-weight-light">Dream Journal</div>
@@ -18,22 +18,13 @@
 
         <!-- Dreams list -->
         <div v-else-if="dreams.length > 0">
-          <q-card
+          <DreamCard
             v-for="dream in dreams"
             :key="dream.id"
-            flat
-            bordered
-            class="q-mb-sm q-pa-md cursor-pointer"
-            @click="router.push(`/dreams/${dream.id}/edit`)"
-          >
-            <div class="text-body1">
-              {{ dream.description?.substring(0, 100)
-              }}{{ dream.description && dream.description.length > 100 ? '...' : '' }}
-            </div>
-            <div class="text-caption text-grey-6 q-mt-xs">
-              {{ formatDate(dream.created) }} • {{ dream.qualities?.length || 0 }} qualities
-            </div>
-          </q-card>
+            :dream="dream"
+            :show-ownership="true"
+            @click="openDream"
+          />
         </div>
 
         <!-- Empty state -->
@@ -102,6 +93,7 @@ import { useAuthStore } from 'stores/auth';
 import { dreamsApi, qualitiesApi } from 'src/services/web';
 import type { Dream } from 'src/types/models';
 import PaginationComponent from 'components/PaginationComponent.vue';
+import DreamCard from 'components/DreamCard.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -118,14 +110,9 @@ const stats = ref({
   qualityCount: 0,
 });
 
-const formatDate = (dateString: string): string => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+const openDream = (dream: Dream): void => {
+  // Always go to edit page since these are user's own dreams
+  void router.push(`/dreams/${dream.id}/edit`);
 };
 
 const onPageChange = (page: number): void => {
@@ -139,7 +126,6 @@ const fetchData = async (page: number = 1): Promise<void> => {
 
     // Build API URL with pagination (limit to 5 dreams per page for dashboard)
     const params = new URLSearchParams();
-    params.append('page_size', '5');
     if (page > 1) {
       params.append('page', page.toString());
     }
@@ -187,10 +173,3 @@ onMounted(() => {
   void fetchData();
 });
 </script>
-
-<style scoped>
-.home-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-</style>

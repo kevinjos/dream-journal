@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-sm q-pa-md-md">
-    <div class="create-dream-container">
+    <div class="page-container">
       <!-- Header -->
       <div class="row items-center q-mb-md">
         <q-btn flat round icon="arrow_back" @click="goBack" class="q-mr-sm" />
@@ -79,10 +79,3 @@ const goBack = (): void => {
 
 // No onMounted needed since we don't fetch data for new dreams
 </script>
-
-<style scoped>
-.create-dream-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-</style>

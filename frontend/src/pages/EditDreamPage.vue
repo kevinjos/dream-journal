@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-sm">
-    <div class="edit-dream-container">
+    <div class="page-container">
       <!-- Header -->
       <div class="row items-center justify-between q-mb-md">
         <div class="row items-center">
@@ -50,70 +50,87 @@
 
       <!-- Generated Images Display -->
       <div v-if="latestCompletedImage" class="q-mt-md q-mb-xl">
-        <q-card class="q-mb-md">
-          <div class="q-pa-sm">
-            <!-- Show completed image -->
-            <q-img
-              v-if="latestCompletedImage.image_url"
-              :src="latestCompletedImage.image_url"
-              :alt="latestCompletedImage.generation_prompt"
-              ratio="1"
-              fit="cover"
-              class="rounded-borders image-border"
-            >
-              <template v-slot:error>
-                <div class="absolute-full flex flex-center bg-grey-3 text-grey-7">
-                  <div class="text-center">
-                    <q-icon name="broken_image" size="24px" />
-                    <div class="text-caption">Failed to load</div>
-                  </div>
-                </div>
-              </template>
-            </q-img>
-          </div>
-
+        <DreamImage :image="latestCompletedImage" :show-border="true" class="q-mb-md">
           <!-- Request Changes Section -->
-          <div class="q-pa-sm q-pt-none">
-            <div class="row q-gutter-sm items-start">
-              <q-input
-                v-model="imageChangePrompt"
-                type="textarea"
-                autogrow
-                outlined
-                dense
-                placeholder="Alter image"
-                class="col"
-                :input-style="{ minHeight: '38px', resize: 'none' }"
-                @keyup.enter.stop="regenerateImage"
-              >
-                <template v-slot:append>
-                  <q-icon
-                    v-if="imageChangePrompt"
-                    name="close"
-                    class="cursor-pointer"
-                    @click="imageChangePrompt = ''"
-                  />
-                </template>
-              </q-input>
-              <q-btn
-                round
-                color="secondary"
-                outline
-                icon="auto_fix_high"
-                size="sm"
-                :loading="generatingImage"
-                :disable="generatingImage || !imageChangePrompt.trim()"
-                @click="regenerateImage"
-                style="flex-shrink: 0"
-              >
-                <template v-slot:loading>
-                  <q-spinner-hourglass />
-                </template>
-              </q-btn>
+          <template #controls>
+            <div class="q-pa-sm q-pt-none">
+              <div class="row q-gutter-sm items-start">
+                <q-input
+                  v-model="imageChangePrompt"
+                  type="textarea"
+                  autogrow
+                  outlined
+                  dense
+                  placeholder="Alter image"
+                  class="col"
+                  :input-style="{ minHeight: '38px', resize: 'none' }"
+                  @keyup.enter.stop="regenerateImage"
+                >
+                  <template v-slot:append>
+                    <q-icon
+                      v-if="imageChangePrompt"
+                      name="close"
+                      class="cursor-pointer"
+                      @click="imageChangePrompt = ''"
+                    />
+                  </template>
+                </q-input>
+                <q-btn
+                  round
+                  color="secondary"
+                  outline
+                  icon="auto_fix_high"
+                  size="sm"
+                  :loading="generatingImage"
+                  :disable="generatingImage || !imageChangePrompt.trim()"
+                  @click="regenerateImage"
+                  style="flex-shrink: 0"
+                >
+                  <template v-slot:loading>
+                    <q-spinner-hourglass />
+                  </template>
+                </q-btn>
+              </div>
             </div>
-          </div>
-        </q-card>
+          </template>
+        </DreamImage>
       </div>
+
+      <!-- Public Sharing Toggle -->
+      <q-card class="q-mt-md" flat bordered>
+        <q-item>
+          <q-item-section avatar>
+            <q-toggle
+              v-model="dreamFormExtended.is_public"
+              color="primary"
+              @update:model-value="onPublicToggle"
+            />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>Share to The Astral Plane</q-item-label>
+            <q-item-label caption> Share anonymously with all users </q-item-label>
+          </q-item-section>
+          <q-item-section side>
+            <q-icon name="info" color="grey-6">
+              <q-tooltip max-width="250px">
+                Your dream will be visible to all users anonymously. No one will know who created
+                it.
+              </q-tooltip>
+            </q-icon>
+          </q-item-section>
+        </q-item>
+        <q-banner
+          v-if="dreamFormExtended.is_public"
+          class="bg-blue-1 text-primary q-mx-md q-mb-sm"
+          dense
+          rounded
+        >
+          <template v-slot:avatar>
+            <q-icon name="visibility" color="primary" />
+          </template>
+          Shared anonymously in The Astral Plane
+        </q-banner>
+      </q-card>
     </div>
   </q-page>
 </template>
@@ -124,18 +141,17 @@ import { useRouter, useRoute } from 'vue-router';
 import { useQuasar } from 'quasar';
 import { dreamsApi } from 'src/services/web';
 import { useDreamForm } from 'src/composables/useDreamForm';
+import { useDreamImages } from 'src/composables/useDreamImages';
 import DreamFormFields from 'components/DreamFormFields.vue';
 import SyncStatusIndicator from 'components/SyncStatusIndicator.vue';
+import DreamImage from 'components/DreamImage.vue';
 import type { SyncStatus } from 'components/SyncStatusIndicator.vue';
-import type { Image } from 'src/types/models';
 import { ImageGenerationStatus } from 'src/types/models';
 
 const router = useRouter();
 const route = useRoute();
 const $q = useQuasar();
 const generatingImage = ref(false);
-const generatedImages = ref<Image[]>([]);
-const imagesLoaded = ref(false); // Track if we've loaded images from API
 let pollingInterval: NodeJS.Timeout | null = null;
 const imageChangePrompt = ref('');
 
@@ -147,19 +163,22 @@ const isInitialLoad = ref(true);
 
 const dreamId = computed(() => route.params.id as string);
 
-// Computed property to show only the latest completed image
-const latestCompletedImage = computed(() => {
-  const completed = generatedImages.value
-    .filter((img) => img.generation_status === ImageGenerationStatus.COMPLETED)
-    .sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
-  return completed.length > 0 ? completed[0] : null;
-});
+// Use the dream images composable
+const { generatedImages, imagesLoaded, latestCompletedImage, fetchImages, updateImage } =
+  useDreamImages();
 
 // Use the dream form composable
 const { qualityInput, dreamForm, addQuality, removeQuality, populateForm } = useDreamForm();
 
+// Add is_public to dreamForm separately (since it's not in DreamCreate type)
+const dreamFormExtended = dreamForm as typeof dreamForm & { is_public?: boolean };
+dreamFormExtended.is_public = false;
+
 // Auto-save function with field-specific updates
-const autoSave = async (fields: Partial<typeof dreamForm>, immediate = false): Promise<void> => {
+const autoSave = async (
+  fields: Partial<typeof dreamForm & { is_public?: boolean }>,
+  immediate = false,
+): Promise<void> => {
   if (isInitialLoad.value || !dreamId.value) return;
 
   // Clear any existing debounce timer for immediate saves
@@ -229,6 +248,18 @@ watch(
   { deep: true },
 );
 
+// Handler for public toggle - immediate save
+const onPublicToggle = (value: boolean): void => {
+  void autoSave({ is_public: value }, true);
+
+  $q.notify({
+    type: 'info',
+    message: value ? 'Dream shared anonymously to The Astral Plane' : 'Dream is now private',
+    position: 'top',
+    timeout: 2000,
+  });
+};
+
 const fetchDream = async (): Promise<void> => {
   if (!dreamId.value) return;
 
@@ -241,9 +272,10 @@ const fetchDream = async (): Promise<void> => {
       description: dream.description,
       quality_names: dream.qualities?.map((q) => q.name) || [],
     });
+    dreamFormExtended.is_public = dream.is_public || false;
 
     // Fetch existing images for this dream
-    await fetchImages();
+    await fetchImages(dreamId.value);
 
     // Mark initial load as complete
     setTimeout(() => {
@@ -257,39 +289,6 @@ const fetchDream = async (): Promise<void> => {
       position: 'top',
     });
     void router.push('/');
-  }
-};
-
-const fetchImages = async (): Promise<void> => {
-  if (!dreamId.value) return;
-
-  try {
-    const response = await dreamsApi.getImages(dreamId.value);
-    generatedImages.value = response.data as Image[];
-
-    // Check if the most recent image is generating/pending and start polling
-    if (generatedImages.value.length > 0) {
-      // Sort images by creation date to find the most recent
-      const sortedImages = [...generatedImages.value].sort(
-        (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime(),
-      );
-      const mostRecentImage = sortedImages[0];
-
-      // Only poll if the most recent image exists and is generating or pending
-      if (
-        mostRecentImage &&
-        (mostRecentImage.generation_status === ImageGenerationStatus.GENERATING ||
-          mostRecentImage.generation_status === ImageGenerationStatus.PENDING)
-      ) {
-        pollImageStatus(mostRecentImage.id);
-      }
-    }
-  } catch (error) {
-    console.error('Error fetching images:', error);
-    // Don't show notification for image loading errors
-  } finally {
-    // Always set images as loaded, regardless of success/failure
-    imagesLoaded.value = true;
   }
 };
 
@@ -370,15 +369,10 @@ const pollImageStatus = (imageId: number): void => {
       if (!dreamId.value) return;
 
       const response = await dreamsApi.getImage(dreamId.value, imageId);
-      const image = response.data as Image;
+      const image = response.data;
 
       // Update the image in our local state
-      const existingIndex = generatedImages.value.findIndex((img) => img.id === imageId);
-      if (existingIndex >= 0) {
-        generatedImages.value[existingIndex] = image;
-      } else {
-        generatedImages.value.push(image);
-      }
+      updateImage(image);
 
       // Stop polling if completed or failed
       if (
@@ -428,8 +422,26 @@ const goBack = (): void => {
   void router.push('/dreams');
 };
 
-onMounted(() => {
-  void fetchDream();
+onMounted(async () => {
+  await fetchDream();
+
+  // Check if the most recent image is generating/pending and start polling
+  if (generatedImages.value.length > 0) {
+    // Sort images by creation date to find the most recent
+    const sortedImages = [...generatedImages.value].sort(
+      (a, b) => new Date(b.created).getTime() - new Date(a.created).getTime(),
+    );
+    const mostRecentImage = sortedImages[0];
+
+    // Only poll if the most recent image exists and is generating or pending
+    if (
+      mostRecentImage &&
+      (mostRecentImage.generation_status === ImageGenerationStatus.GENERATING ||
+        mostRecentImage.generation_status === ImageGenerationStatus.PENDING)
+    ) {
+      pollImageStatus(mostRecentImage.id);
+    }
+  }
 });
 
 onUnmounted(() => {
@@ -448,11 +460,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.edit-dream-container {
-  max-width: 600px;
-  margin: 0 auto;
-}
-
 /* Custom fade transition */
 .fade-enter-active,
 .fade-leave-active {

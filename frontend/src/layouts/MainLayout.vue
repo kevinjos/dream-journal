@@ -44,6 +44,15 @@
           </q-item-section>
         </q-item>
 
+        <q-item clickable v-ripple @click="navigateTo('/qualities')">
+          <q-item-section avatar>
+            <q-icon name="cloud" />
+          </q-item-section>
+          <q-item-section>
+            <q-item-label>My Dream Cloud</q-item-label>
+          </q-item-section>
+        </q-item>
+
         <q-item clickable v-ripple @click="navigateTo('/dreams/create')">
           <q-item-section avatar>
             <q-icon name="add" />
@@ -53,12 +62,14 @@
           </q-item-section>
         </q-item>
 
-        <q-item clickable v-ripple @click="navigateTo('/qualities')">
+        <q-separator />
+
+        <q-item clickable v-ripple @click="navigateTo('/dreams/astral-plane')">
           <q-item-section avatar>
-            <q-icon name="cloud" />
+            <q-icon name="visibility" />
           </q-item-section>
           <q-item-section>
-            <q-item-label>Dream Cloud</q-item-label>
+            <q-item-label>Astral Plane</q-item-label>
           </q-item-section>
         </q-item>
       </q-list>
