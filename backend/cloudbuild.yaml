@@ -94,24 +94,23 @@ steps:
     id: 'deploy-service'
     waitFor: ['run-migrations']
 
-  # Deploy Cloud Run worker service (parallel with main service)
+  # Deploy Cloud Run worker pool for Celery workers
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        # Set environment variables for envsubst
-        export PROJECT_ID=${_PROJECT_ID}
-        export REGION=${_REGION}
-        export SHORT_SHA=${SHORT_SHA}
+        # Deploy Celery workers to Cloud Run worker pool
+        echo "Deploying Celery workers to Cloud Run worker pool"
 
-        # Install envsubst for variable substitution
-        apt-get update && apt-get install -y gettext-base
-
-        # Process and deploy worker service configuration
-        echo "Processing backend/cloud-run-worker-service.yaml"
-        envsubst < "backend/cloud-run-worker-service.yaml" > /tmp/processed-worker-service.yaml
-        gcloud run services replace /tmp/processed-worker-service.yaml --region=${_REGION}
+        gcloud beta run worker-pools deploy dream-journal-celery-workers \
+          --image=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:${SHORT_SHA} \
+          --region=${_REGION} \
+          --cpu=1 \
+          --memory=512Mi \
+          --service-account=cloud-run-app@${_PROJECT_ID}.iam.gserviceaccount.com \
+          --set-env-vars=DJANGO_SETTINGS_MODULE=dream_journal.settings,DEBUG=False,GCS_BUCKET_NAME=${_PROJECT_ID}-dream-images,GOOGLE_CLOUD_PROJECT=${_PROJECT_ID} \
+          --set-secrets=DATABASE_URL=database-url:latest,GEMINI_API_KEY=gemini-api-key:latest,SECRET_KEY=django-secret-key:latest
     id: 'deploy-worker'
     waitFor: ['push-worker']
 
