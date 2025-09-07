@@ -31,10 +31,10 @@ try:
             app.config_from_object("celery_config")
 
             # Start health server on port 8080 (Cloud Run default)
-            from health_server import start_health_server
+            # from health_server import start_health_server
 
-            start_health_server(app, port=int(os.getenv("PORT", "8080")))
-            print("Health server started for Celery worker", file=sys.stderr)
+            # start_health_server(app, port=int(os.getenv("PORT", "8080")))
+            # print("Health server started for Celery worker", file=sys.stderr)
 
         # Remove the script name from argv so celery gets clean arguments
         args = ["celery"] + sys.argv[1:]
