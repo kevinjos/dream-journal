@@ -103,14 +103,18 @@ steps:
         # Deploy Celery workers to Cloud Run worker pool
         echo "Deploying Celery workers to Cloud Run worker pool"
 
-        gcloud beta run worker-pools deploy dream-journal-celery-workers \
+        gcloud beta run worker-pools deploy dream-journal-celery-worker-pool \
           --image=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPOSITORY}/celery-worker:${SHORT_SHA} \
           --region=${_REGION} \
           --cpu=1 \
           --memory=512Mi \
           --service-account=cloud-run-app@${_PROJECT_ID}.iam.gserviceaccount.com \
           --set-env-vars=DJANGO_SETTINGS_MODULE=dream_journal.settings,DEBUG=False,GCS_BUCKET_NAME=${_PROJECT_ID}-dream-images,GOOGLE_CLOUD_PROJECT=${_PROJECT_ID} \
-          --set-secrets=DATABASE_URL=database-url:latest,GEMINI_API_KEY=gemini-api-key:latest,SECRET_KEY=django-secret-key:latest
+          --set-secrets=DATABASE_URL=database-url:latest,GEMINI_API_KEY=gemini-api-key:latest,SECRET_KEY=django-secret-key:latest \
+          --set-cloudsql-instances=${_PROJECT_ID}:${_REGION}:dream-journal-postgres \
+          --network=dream-journal-vpc \
+          --subnet=dream-journal-subnet \
+          --vpc-egress=all-traffic
     id: 'deploy-worker'
     waitFor: ['push-worker']
 
